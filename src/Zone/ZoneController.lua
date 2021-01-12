@@ -12,23 +12,48 @@ local activeTriggers = {}
 local registeredZones = {}
 local activeParts = {}
 local activePartToZone = {}
-local playerHRPs = {}
+local bodyParts = {}
 local activeConnections = 0
 local runService = game:GetService("RunService")
 local heartbeat = runService.Heartbeat
-local heartbeatConnection
+local heartbeatConnections = {}
 local localPlayer = runService:IsClient() and players.LocalPlayer
 
 
 
 -- LOCAL FUNCTIONS
 local function dictLength(dictionary)
-    local count = 0
-    for _, _ in pairs(dictionary) do
-        count += 1
-    end
-    return count
+	local count = 0
+	for _, _ in pairs(dictionary) do
+		count += 1
+	end
+	return count
 end
+
+local function fillOccupants(zonesAndOccupantsTable, zone, occupant)
+	local occupantsDict = zonesAndOccupantsTable[zone]
+	if not occupantsDict then
+		occupantsDict = {}
+		zonesAndOccupantsTable[zone] = occupantsDict
+	end
+	occupantsDict[occupant] = true
+end
+
+local heartbeatActions = {
+	["player"] = function()
+		return ZoneController._getZonesAndPlayers(activeZones, activeZonesTotalVolume)
+	end,
+	["localPlayer"] = function()
+		local zonesAndOccupants = {}
+		local touchingZones = ZoneController.getTouchingZones(localPlayer)
+		for _, zone in pairs(touchingZones) do
+			if zone.activeTriggers["localPlayer"] then
+				fillOccupants(zonesAndOccupants, zone, localPlayer)
+			end
+		end
+		return zonesAndOccupants
+	end,
+}
 
 
 
@@ -36,35 +61,51 @@ end
 -- This enables character data (volume, HumanoidRootParts, etc) to be handled on
 -- an event-basis, instead of being retrieved every interval
 local function updateCharactersTotalVolume()
-    charactersTotalVolume = 0
-    playerHRPs = {}
-    for _, plr in pairs(players:GetPlayers()) do
-        local charRegion = ZoneController.getCharacterRegion(plr)
-        if charRegion then
-            local rSize = charRegion.Size
-            local charVolume = rSize.X*rSize.Y*rSize.Z
-            charactersTotalVolume += charVolume
-            table.insert(playerHRPs, plr.Character.HumanoidRootPart)
-        end
-    end
+	charactersTotalVolume = 0
+	bodyParts = {}
+	-- We ignore these due to their insignificance (e.g. we ignore the lower and
+	-- upper torso because the HumanoidRootPart also covers these areas)
+	-- This ultimately reduces the burden on the player region checks
+	local bodyPartsToIgnore = {
+		UpperTorso = true,
+		LowerTorso = true,
+		Torso = true,
+		LeftHand = true,
+		RightHand = true,
+		LeftFoot = true,
+		RightFoot = true,
+	}
+	for _, plr in pairs(players:GetPlayers()) do
+		local charRegion = ZoneController.getCharacterRegion(plr)
+		if charRegion then
+			local rSize = charRegion.Size
+			local charVolume = rSize.X*rSize.Y*rSize.Z
+			charactersTotalVolume += charVolume
+			for _, part in pairs(plr.Character:GetChildren()) do
+				if part:IsA("BasePart") and not bodyPartsToIgnore[part.Name] then
+					table.insert(bodyParts, part)
+				end
+			end
+		end
+	end
 end
 players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function(char)
-        local humanoid = char:WaitForChild("Humanoid", 3)
-        if humanoid then
-            updateCharactersTotalVolume()
-            for _, valueInstance in pairs(humanoid:GetChildren()) do
-                if valueInstance:IsA("NumberValue") then
-                    valueInstance.Changed:Connect(function()
-                        updateCharactersTotalVolume()
-                    end)
-                end
-            end
-        end
-    end)
+	plr.CharacterAdded:Connect(function(char)
+		local humanoid = char:WaitForChild("Humanoid", 3)
+		if humanoid then
+			updateCharactersTotalVolume()
+			for _, valueInstance in pairs(humanoid:GetChildren()) do
+				if valueInstance:IsA("NumberValue") then
+					valueInstance.Changed:Connect(function()
+						updateCharactersTotalVolume()
+					end)
+				end
+			end
+		end
+	end)
 end)
 players.PlayerRemoving:Connect(function(plr)
-    updateCharactersTotalVolume()
+	updateCharactersTotalVolume()
 end)
 
 
@@ -75,199 +116,204 @@ function ZoneController._registerZone(zoneToRegister)
 end
 
 function ZoneController._deregisterZone(zoneToRegister)
-    registeredZones[zoneToRegister] = nil
+	registeredZones[zoneToRegister] = nil
 end
 
 function ZoneController._registerConnection(registeredZone, registeredTriggerType)
-    local originalItems = dictLength(registeredZone.activeTriggers)
-    activeConnections += 1
-    if originalItems == 0 then
-        activeZones[registeredZone] = true
-        local activeMaid = registeredZone._maid:give(Maid.new())
-        registeredZone._activeMaid = activeMaid
-        activeMaid:give(registeredZone.updated:Connect(function()
-            ZoneController._updateActiveParts()
-        end))
-        ZoneController._updateActiveParts()
-    end
-    local currentTriggerCount = activeTriggers[registeredTriggerType]
-    activeTriggers[registeredTriggerType] = (currentTriggerCount and currentTriggerCount+1) or 1
-    registeredZone.activeTriggers[registeredTriggerType] = true
-    ZoneController.formHeartbeat()
+	local originalItems = dictLength(registeredZone.activeTriggers)
+	activeConnections += 1
+	if originalItems == 0 then
+		activeZones[registeredZone] = true
+		local activeMaid = registeredZone._maid:give(Maid.new())
+		registeredZone._activeMaid = activeMaid
+		activeMaid:give(registeredZone.updated:Connect(function()
+			ZoneController._updateActiveParts()
+		end))
+		ZoneController._updateActiveParts()
+	end
+	local currentTriggerCount = activeTriggers[registeredTriggerType]
+	activeTriggers[registeredTriggerType] = (currentTriggerCount and currentTriggerCount+1) or 1
+	registeredZone.activeTriggers[registeredTriggerType] = true
+	if registeredZone.touchedConnectionActions[registeredTriggerType] then
+		registeredZone:_formTouchedConnection(registeredTriggerType)
+	end
+	if heartbeatActions[registeredTriggerType] then
+		ZoneController.formHeartbeat(registeredTriggerType)
+	end
 end
 
-function ZoneController.formHeartbeat()
-    if heartbeatConnection then return end
-    -- This will only ever connect once per server
-    -- This means instead of initiating a loop per-zone we can handle everything within
-    -- a singular connection. This is particularly beneficial for player-orinetated
-    -- raycasting, where a raycast only needs to be cast once per interval, as apposed
-    -- to every zone per interval
-    -- I utilise heartbeat with os.clock() to provide precision (where needed) and flexibility
-    local nextCheck = 0
-    local triggerTypeActions = {
-        ["player"] = function()
-            local actions = {}
-            local function fillActionTable(zone, plr)
-                local zoneTable = actions[zone]
-                if not zoneTable then
-                    zoneTable = {}
-                    actions[zone] = zoneTable
-                end
-                table.insert(zoneTable, plr)
-            end
-            print(charactersTotalVolume, activeZonesTotalVolume, charactersTotalVolume < activeZonesTotalVolume)
-            if charactersTotalVolume < activeZonesTotalVolume then
-                -- If the volume of all *characters* within the server is *less than* the total
-                -- volume of all active zones (i.e. zones which listen for .playerEntered)
-                -- then it's more efficient cast regions and rays within each character and
-                -- then determine the zones they belong to
-                for _, plr in pairs(players:GetPlayers()) do
-                    local touchingZones = ZoneController.getTouchingZones(plr)
-                    for _, zone in pairs(touchingZones) do
-                        if zone.activeTriggers["player"] then
-                            fillActionTable(zone, plr)
-                        end
-                    end
-                end
-            else
-                -- If the volume of all *active zones* within the server is *less than* the total
-                -- volume of all characters, then it's more efficient to perform the region and raycast
-                -- checks directly within each zone to determine players inside
-                for zone, _ in pairs(activeZones) do
-                    if zone.activeTriggers["player"] then
-                        local result = workspace:FindPartsInRegion3WithWhiteList(zone.region, playerHRPs, #playerHRPs)
-                        for _, HRP in pairs(result) do
-                            local plr = players:GetPlayerFromCharacter(HRP.Parent)
-                            if plr and zone:findPlayer(plr) then
-                                fillActionTable(zone, plr)
-                            end
-                        end
-                    end
-                end
-            end
-            for zone, zoneTable in pairs(actions) do
-                print(#zoneTable)
-                for _, plr in pairs(zoneTable) do
-                    -- Inform zone which then calls playerEntering/Exiting
-                end
-            end
-        end,
-
-		["part"] = function()
-            --local maxParts = (not zone.ignoreRecommendedMaxParts and zone.recommendedMaxParts) or math.huge
-        end,
-
-		["localPlayer"] = function()
-            local touchingZones = ZoneController.getTouchingZones(localPlayer)
-            for zone, _ in pairs(touchingZones) do
-                if zone.activeTriggers["localPlayer"] then
-                    -- Inform zone which then calls localPlayerEntering/Exiting
-                end
-            end
-        end,
-	}
-    heartbeatConnection = heartbeat:Connect(function()
-        local clockTime = os.clock()
-        if clockTime >= nextCheck then
-            ----------
-            --if .accuracy == enum.Accuracy.Precise
-            nextCheck = clockTime + 0.1
-            ----------
-            for triggerName, _ in pairs(activeTriggers) do
-                triggerTypeActions[triggerName]()
-            end
-        end
-    end)
+function ZoneController.formHeartbeat(registeredTriggerType)
+	local heartbeatConnection = heartbeatConnections[registeredTriggerType]
+	if heartbeatConnection then return end
+	-- This will only ever connect once per server
+	-- This means instead of initiating a loop per-zone we can handle everything within
+	-- a singular connection. This is particularly beneficial for player-orinetated
+	-- raycasting, where a raycast only needs to be cast once per interval, as apposed
+	-- to every zone per interval
+	-- I utilise heartbeat with os.clock() to provide precision (where needed) and flexibility
+	local nextCheck = 0
+	heartbeatConnection = heartbeat:Connect(function()
+		local clockTime = os.clock()
+		if clockTime >= nextCheck then
+			----------
+			--if .accuracy == enum.Accuracy.Precise
+			nextCheck = clockTime + 0.1
+			----------
+			for triggerName, _ in pairs(activeTriggers) do
+				local zonesAndOccupants = heartbeatActions[triggerName]()
+				for zone, _ in pairs(activeZones) do
+					local occupantsDict = zonesAndOccupants[zone] or {}
+					zone:_updateOccupants(triggerName, occupantsDict)
+				end
+			end
+		end
+	end)
+	heartbeatConnections[registeredTriggerType] = heartbeatConnection
+	print("FORM Heartbeat: ", registeredTriggerType)
 end
 
 function ZoneController._deregisterConnection(registeredZone, registeredTriggerType)
-    activeConnections -= 1
-    if activeTriggers[registeredTriggerType] == 1 then
-        activeTriggers[registeredTriggerType] = nil
-    end
-    registeredZone.activeTriggers[registeredTriggerType] = nil
-    if dictLength(registeredZone.activeTriggers) == 0 then
-        activeZones[registeredZone] = nil
-        registeredZone._activeMaid:clean()
-        ZoneController._updateActiveParts()
-    end
-    if activeConnections <= 0 and heartbeatConnection then
-        heartbeatConnection:Disconnect()
-        heartbeatConnection = nil
-    end
+	activeConnections -= 1
+	if activeTriggers[registeredTriggerType] == 1 then
+		activeTriggers[registeredTriggerType] = nil
+		local heartbeatConnection = heartbeatConnections[registeredTriggerType]
+		if heartbeatConnection then
+			heartbeatConnections[registeredTriggerType] = nil
+			heartbeatConnection:Disconnect()
+			warn("END Heartbeat: ", registeredTriggerType)
+		end
+	end
+	registeredZone.activeTriggers[registeredTriggerType] = nil
+	if dictLength(registeredZone.activeTriggers) == 0 then
+		activeZones[registeredZone] = nil
+		registeredZone._activeMaid:clean()
+		ZoneController._updateActiveParts()
+	end
+	if registeredZone.touchedConnectionActions[registeredTriggerType] then
+		registeredZone:_disconnectTouchedConnection(registeredTriggerType)
+	end
 end
 
 function ZoneController._updateActiveParts()
-    activeParts = {}
-    activePartToZone = {}
-    activeZonesTotalVolume = 0
-    for zone, _ in pairs(activeZones) do
-        activeZonesTotalVolume += zone.volume
-        for _, zonePart in pairs(zone.groupParts) do
-             table.insert(activeParts, zonePart)
-            activePartToZone[zonePart] = zone
-        end
-    end
+	activeParts = {}
+	activePartToZone = {}
+	activeZonesTotalVolume = 0
+	for zone, _ in pairs(activeZones) do
+		activeZonesTotalVolume += zone.volume
+		for _, zonePart in pairs(zone.groupParts) do
+			table.insert(activeParts, zonePart)
+			activePartToZone[zonePart] = zone
+		end
+	end
+end
+
+function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume)
+	local totalZoneVolume = zoneCustomVolume
+	if not totalZoneVolume then
+		for zone, _ in pairs(zonesDictToCheck) do
+			totalZoneVolume += zone.volume
+		end
+	end
+	local zonesAndOccupants = {}
+	if charactersTotalVolume < totalZoneVolume then
+		-- If the volume of all *characters* within the server is *less than* the total
+		-- volume of all active zones (i.e. zones which listen for .playerEntered)
+		-- then it's more efficient cast regions and rays within each character and
+		-- then determine the zones they belong to
+		for _, plr in pairs(players:GetPlayers()) do
+			local touchingZones = ZoneController.getTouchingZones(plr)
+			for _, zone in pairs(touchingZones) do
+				if zone.activeTriggers["player"] then
+					fillOccupants(zonesAndOccupants, zone, plr)
+				end
+			end
+		end
+	else
+		-- If the volume of all *active zones* within the server is *less than* the total
+		-- volume of all characters, then it's more efficient to perform the region and raycast
+		-- checks directly within each zone to determine players inside
+		for zone, _ in pairs(zonesDictToCheck) do
+			if zone.activeTriggers["player"] then
+				local result = workspace:FindPartsInRegion3WithWhiteList(zone.region, bodyParts, #bodyParts)
+				local playersDict = {}
+				for _, bodyPart in pairs(result) do
+					local parentName = bodyPart.Parent.Name
+					if not playersDict[parentName] then
+						playersDict[parentName] = players:GetPlayerFromCharacter(bodyPart.Parent)
+					end
+				end
+				for _, plr in pairs(playersDict) do
+					if plr and zone:findPlayer(plr) then
+						fillOccupants(zonesAndOccupants, zone, plr)
+					end
+				end
+			end
+		end
+	end
+	return zonesAndOccupants
 end
 
 
 
 -- PUBLIC FUNCTIONS
 function ZoneController.getZones()
-    local registeredZonesArray = {}
-    for zone, _ in pairs(registeredZones) do
-        table.insert(registeredZonesArray, zone)
-    end
-    return registeredZonesArray
+	local registeredZonesArray = {}
+	for zone, _ in pairs(registeredZones) do
+		table.insert(registeredZonesArray, zone)
+	end
+	return registeredZonesArray
 end
 
+--[[
+-- the player touched events which utilise active zones at the moment may change to the new CanTouch method for parts in the future
+-- hence im disabling this as it may be depreciated quite soon
 function ZoneController.getActiveZones()
-    local zonesArray = {}
-    for _, zone in pairs(activeZones) do
-        table.insert(zonesArray, zone)
-    end
-    return zonesArray
+	local zonesArray = {}
+	for zone, _ in pairs(activeZones) do
+		table.insert(zonesArray, zone)
+	end
+	return zonesArray
 end
+--]]
 
 function ZoneController.getCharacterRegion(player)
-    local char = player.Character
-    local head = char and char:FindFirstChild("Head")
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not(hrp or head) then return nil end
-    local headY = head.Size.Y
-    local hrpSize = hrp.Size
-    local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
-    local regionCFrame = hrp.CFrame * CFrame.new(0, headY/2 - hrpSize.Y/2, 0)
-    local charRegion = RotatedRegion3.new(regionCFrame, charSize)
-    return charRegion, regionCFrame, charSize
+	local char = player.Character
+	local head = char and char:FindFirstChild("Head")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not(hrp or head) then return nil end
+	local headY = head.Size.Y
+	local hrpSize = hrp.Size
+	local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
+	local regionCFrame = hrp.CFrame * CFrame.new(0, headY/2 - hrpSize.Y/2, 0)
+	local charRegion = RotatedRegion3.new(regionCFrame, charSize)
+	return charRegion, regionCFrame, charSize
 end
 
 function ZoneController.getTouchingZones(player)
-    local charRegion = ZoneController.getCharacterRegion(player)
-    if not charRegion then return {} end
-    --[[
-    local part = Instance.new("Part")
-    part.Size = charSize
-    part.CFrame = regionCFrame
-    part.Anchored = true
-    part.CanCollide = false
-    part.Color = Color3.fromRGB(255, 0, 0)
-    part.Transparency = 0.4
-    part.Parent = workspace
-    game:GetService("Debris"):AddItem(part, 2)
-    --]]
-    local parts = charRegion:FindPartsInRegion3WithWhiteList(activeParts, #activeParts)
-    local zonesDict = {}
-    for _, part in pairs(parts) do
-        local correspondingZone = activePartToZone[part]
-        zonesDict[correspondingZone] = true
-    end
-    local touchingZonesArray = {}
-    for zone, _ in pairs(zonesDict) do
-        table.insert(touchingZonesArray, zone)
-    end
-    return touchingZonesArray
+	local charRegion = ZoneController.getCharacterRegion(player)
+	if not charRegion then return {} end
+	--[[
+	local part = Instance.new("Part")
+	part.Size = charSize
+	part.CFrame = regionCFrame
+	part.Anchored = true
+	part.CanCollide = false
+	part.Color = Color3.fromRGB(255, 0, 0)
+	part.Transparency = 0.4
+	part.Parent = workspace
+	game:GetService("Debris"):AddItem(part, 2)
+	--]]
+	local parts = charRegion:FindPartsInRegion3WithWhiteList(activeParts, #activeParts)
+	local zonesDict = {}
+	for _, part in pairs(parts) do
+		local correspondingZone = activePartToZone[part]
+		zonesDict[correspondingZone] = true
+	end
+	local touchingZonesArray = {}
+	for zone, _ in pairs(zonesDict) do
+		table.insert(touchingZonesArray, zone)
+	end
+	return touchingZonesArray
 end
 
 
