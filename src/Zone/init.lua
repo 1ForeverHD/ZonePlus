@@ -14,7 +14,7 @@ local ZonePlusReference = require(script.ZonePlusReference)
 local ZoneController = require(script.ZoneController)
 local Zone = {}
 Zone.__index = Zone
-ZonePlusReference.moveToReplicatedStorage()
+ZonePlusReference.addToReplicatedStorage()
 
 
 

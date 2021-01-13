@@ -8,13 +8,12 @@ local ZonePlusReference = {
     container = script.Parent
 }
 
-function ZonePlusReference.moveToReplicatedStorage()
+function ZonePlusReference.addToReplicatedStorage()
     local existingItem = replicatedStorage:FindFirstChild(script.Name)
     if existingItem then
-        warn(("Failed to move the ZonePlus reference to ReplicatedStorage as instance '%s' already exists."):format(script.Name))
         return false
     end
-    script.Parent = replicatedStorage
+    script:Clone().Parent = replicatedStorage
     return true
 end
 
