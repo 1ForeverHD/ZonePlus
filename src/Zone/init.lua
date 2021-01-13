@@ -10,9 +10,11 @@ local enum = Enum_.enums
 local Maid = require(script.Maid)
 local RotatedRegion3 = require(script.RotatedRegion3)
 local Signal = require(script.Signal)
+local ZonePlusReference = require(script.ZonePlusReference)
 local ZoneController = require(script.ZoneController)
 local Zone = {}
 Zone.__index = Zone
+ZonePlusReference.moveToReplicatedStorage()
 
 
 
@@ -29,7 +31,7 @@ function Zone.new(group)
 	end
 
 	-- Configurable
-	self.accuracy = enum.Accuracy.Precise
+	self.accuracy = enum.Accuracy.High
 	self.autoUpdate = true
 	self.respectUpdateQueue = true
 	self.bypassRaycastChecks = false
@@ -65,21 +67,20 @@ function Zone.new(group)
 	}
 	for _, triggerType in pairs(triggerTypes) do
 		local activeConnections = 0
-		local previousActiveConnections = activeConnections
+		local previousActiveConnections = 0
 		for i, triggerEvent in pairs(triggerEvents) do
 			-- this enables us to determine when a developer connects to an event
 			-- so that we can act accoridngly (i.e. begin or end a checker loop)
-			local signal = maid:give(Signal.new())
-			local increment = (i == 1 and 1) or -1
+			local signal = maid:give(Signal.new(true))
 			local triggerEventUpper = triggerEvent:sub(1,1):upper()..triggerEvent:sub(2)
 			local signalName = triggerType..triggerEventUpper
 			self[signalName] = signal
-			signal.connectionsChanged:Connect(function()
+			signal.connectionsChanged:Connect(function(increment)
 				if triggerType == "localPlayer" and not localPlayer then
-					error(("Can only connect to .localPlayer%s on the client!"):format(triggerEventUpper))
+					error(("Can only connect to 'localPlayer%s' on the client!"):format(triggerEventUpper))
 				end
+				previousActiveConnections = activeConnections
 				activeConnections += increment
-				print("-> connections changed: ", activeConnections)
 				if previousActiveConnections == 0 and activeConnections > 0 then
 					-- At least 1 connection active, begin loop
 					ZoneController._registerConnection(self, triggerType, triggerEventUpper)
@@ -104,14 +105,14 @@ function Zone.new(group)
 		end
 	end
 
+	-- This constructs the zones boundaries, region, etc
+	self:_update()
+
 	-- Register/deregister zone
 	ZoneController._registerZone(self)
 	maid:give(function()
 		ZoneController._deregisterZone(self)
 	end)
-
-	-- Update
-	self:_update()
 	
 	return self
 end
@@ -272,7 +273,6 @@ function Zone:_update()
 	local rSize = region.Size
 	self.volume = rSize.X*rSize.Y*rSize.Z
 	
-	print("Update zone!")
 	-- Update: I was going to use this for the old part detection until the CanTouch property was released
 	-- everything below is now irrelevant however I'll keep just in case I use again for future
 	-------------------------------------------------------------------------------------------------
@@ -369,10 +369,10 @@ function Zone:_partTouchedZone(part)
 	trackingDict[part] = self._maid:give(heartbeat:Connect(function()
 		local clockTime = os.clock()
 		if clockTime >= nextCheck then
-			----------
-			--if .accuracy == enum.Accuracy.Precise
-			nextCheck = clockTime + 0.1
-			----------
+			----
+			local cooldown = enum.Accuracy.getProperty(self.accuracy)
+			nextCheck = clockTime + cooldown
+			----
 			local withinZone = self:findPart(part, regionConstructor)
 			if not withinZone then
 				trackingDict[part]:Disconnect()
@@ -430,8 +430,10 @@ function Zone:findPart(part, regionConstructor)
 	end--]]
 	local finalRegionConstructor = regionConstructor or self:_getRegionConstructor(part)
 	local partCFrame = part.CFrame
-	local tinyCheckRegion = Region3.new((partCFrame * CFrame.new(0.1, 0.1, 0.1)).Position, (partCFrame * CFrame.new(-0.1, -0.1, -0.1)).Position)
-	local touchingGroupParts = workspace:FindPartsInRegion3WithWhiteList(tinyCheckRegion, self.groupParts, #self.groupParts)
+	--local tinyCheckRegion = Region3.new((partCFrame * CFrame.new(0.1, 0.1, 0.1)).Position, (partCFrame * CFrame.new(-0.1, -0.1, -0.1)).Position)
+	--local touchingGroupParts = workspace:FindPartsInRegion3WithWhiteList(tinyCheckRegion, self.groupParts, #self.groupParts)
+	local tinyCheckRegion = RotatedRegion3[finalRegionConstructor](part.CFrame, Vector3.new(0.1, 0.1, 0.1))
+	local touchingGroupParts = tinyCheckRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
 	if #touchingGroupParts > 0 then
 		return true
 	end
@@ -445,6 +447,9 @@ function Zone:findPart(part, regionConstructor)
 end
 
 function Zone:findLocalPlayer()
+	if not localPlayer then
+		error("Can only call 'findLocalPlayer' on the client!")
+	end
 	return self:findPlayer(localPlayer)
 end
 
@@ -482,7 +487,35 @@ function Zone:getParts()
 end
 
 function Zone:getRandomPoint()
+	local region = self.region
+	local size = region.Size
+	local cframe = region.CFrame
+	local touchingGroupParts
+	local random = Random.new()
+	local randomCFrame
+	repeat
+		randomCFrame = cframe * CFrame.new(random:NextNumber(-size.X/2,size.X/2), random:NextNumber(-size.Y/2,size.Y/2), random:NextNumber(-size.Z/2,size.Z/2))
+		local randomRegion = RotatedRegion3.new(randomCFrame, Vector3.new(0.1, 0.1, 0.1))
+		touchingGroupParts = randomRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
+	until #touchingGroupParts > 0
+	local randomVector = randomCFrame.Position
+	return randomVector, touchingGroupParts
+end
 
+function Zone:setAccuracy(enumIdOrName)
+	local enumId = tonumber(enumIdOrName)
+	if not enumId then
+		enumId = enum.Accuracy[enumIdOrName]
+		if not enumId then
+			error(("'%s' is an invalid enumName!"):format(enumIdOrName))
+		end
+	else
+		local enumName = enum.Accuracy.getName(enumId)
+		if not enumName then
+			error(("%s is an invalid enumId!"):format(enumId))
+		end
+	end
+	self.accuracy = enumId
 end
 
 function Zone:destroy()

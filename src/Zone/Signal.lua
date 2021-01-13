@@ -9,14 +9,14 @@ Signal.__index = Signal
 Signal.ClassName = "Signal"
 Signal.totalConnections = 0
 
-function Signal.new(ignoreCC)
+function Signal.new(trackConnectionsChanged)
 	local self = setmetatable({}, Signal)
 
 	self._bindableEvent = Instance.new("BindableEvent")
 	self._argData = nil
 	self._argCount = nil -- Prevent edge case of :Fire("A", nil) --> "A" instead of "A", nil
-	if not ignoreCC then
-		self.connectionsChanged = Signal.new(true)
+	if trackConnectionsChanged then
+		self.connectionsChanged = Signal.new()
 	end
 
 	return self
@@ -45,7 +45,17 @@ function Signal:Connect(handler)
 	-- this enables us to determine when a signal is connected to from an outside source
 	self.totalConnections += 1
 	if self.connectionsChanged then
-		self.connectionsChanged:Fire(self.totalConnections)
+		self.connectionsChanged:Fire(1)
+		local heartbeatConection
+		heartbeatConection = game:GetService("RunService").Heartbeat:Connect(function()
+			if connection.Connected == false then
+				heartbeatConection:Disconnect()
+				if self.connectionsChanged then
+					self.totalConnections -= 1
+					self.connectionsChanged:Fire(-1)
+				end
+			end
+		end)
 	end
 
 	return connection
@@ -63,15 +73,14 @@ function Signal:Destroy()
 		self._bindableEvent = nil
 	end
 	if self.connectionsChanged then
+		self.connectionsChanged:Fire(-self.totalConnections)
 		self.connectionsChanged:Destroy()
 		self.connectionsChanged = nil
+		self.totalConnections = 0
 	end
 
 	self._argData = nil
 	self._argCount = nil
-
-	self.totalConnections -= 1
-	self.connectionsChanged:Fire(self.totalConnections)
 end
 
 function Signal:Disconnect()
