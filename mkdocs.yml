@@ -42,9 +42,9 @@ markdown_extensions:
 nav:
   - Home:
     - About: index.md
-    - Installation: index.md
+    - Installation: installation.md
     - Modules:
-      - Zone: index.md
-      - ZoneController: index.md
-  - Changelog:
-    - ZonePlus: test.md
+      - Zone: zone.md
+      - ZoneController: zonecontroller.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md

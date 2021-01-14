@@ -1,3 +1,1 @@
-# Welcome to MkDocs
-
-:heart-24:
+# About
