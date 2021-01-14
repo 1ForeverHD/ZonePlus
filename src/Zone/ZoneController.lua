@@ -337,6 +337,18 @@ function ZoneController.getTouchingZones(player, onlyActiveZones)
 	local partsTable = (onlyActiveZones and activeParts) or allParts
 	local partToZoneDict = (onlyActiveZones and activePartToZone) or allPartToZone
 	local parts = charRegion:FindPartsInRegion3WithWhiteList(partsTable, #partsTable)
+	if #parts > 0 then
+		local hrp = player.Character.HumanoidRootPart
+		local hrpCFrame = hrp.CFrame
+		local hrpSizeX = hrp.Size.X
+		local pointsToVerify = {
+			(hrpCFrame * CFrame.new(-hrpSizeX, 0, 0)).Position,
+			(hrpCFrame * CFrame.new(hrpSizeX, 0, 0)).Position,
+		}
+		if not ZoneController.verifyTouchingParts(pointsToVerify, parts) then
+			return {}
+		end
+	end
 	local zonesDict = {}
 	for _, part in pairs(parts) do
 		local correspondingZone = partToZoneDict[part]
@@ -349,6 +361,66 @@ function ZoneController.getTouchingZones(player, onlyActiveZones)
 	return touchingZonesArray
 end
 
+function ZoneController.getHeightOfParts(tableOfParts)
+	local maxY
+	local minY
+	for _, groupPart in pairs(tableOfParts) do
+		local partHeight = groupPart.Size.Y + 10
+		local partYHalf = partHeight/2
+		local partTopY = groupPart.Position.Y + partYHalf
+		local partBottomY = groupPart.Position.Y - partYHalf
+		if maxY == nil or partTopY > maxY then
+			maxY = partTopY
+		end
+		if minY == nil or partBottomY < minY then
+			minY = partBottomY
+		end
+	end
+	local height = maxY - minY
+	return height, minY, maxY
+end
+
+function ZoneController.vectorIsBetweenYBounds(vectorToCheck, tableOfParts)
+	local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = tableOfParts
+	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+	for i = 1, 2 do
+		local startVector = Vector3.new(vectorToCheck.X, (i == 1 and maxY) or minY, vectorToCheck.Z)
+		local directionVector = Vector3.new(0, (i == 1 and -height) or height, 0)
+		local raycastResult = workspace:Raycast(startVector, directionVector, raycastParams)
+		local vectorY = vectorToCheck.Y
+		local intersectionY = (raycastResult and raycastResult.Position.Y)
+		if not intersectionY or (i == 1 and vectorY > intersectionY) or (i == 2 and vectorY < intersectionY) then
+			return false
+		end
+	end
+	return true
+end
+
+function ZoneController.verifyTouchingParts(vectorsToCheck, tableOfParts)
+	-- Region3 checks are unreliable for some baseparts such as MeshParts and UnionOperations, therefore
+	-- we perform additional raycast checks to confirm whether the touching parts are actually within the zone
+	local classesToCheck = {
+		MeshPart = true,
+		UnionOperation = true,
+	}
+	local additionalCheckRequired = true
+	for _, part in pairs(tableOfParts) do
+		if not classesToCheck[part.ClassName] then
+			additionalCheckRequired = false
+		end
+	end
+	if not additionalCheckRequired then
+		return true
+	end
+	for _, vector in pairs(vectorsToCheck) do
+		if ZoneController.vectorIsBetweenYBounds(vector, tableOfParts) then
+			return true
+		end
+	end
+	return false
+end
 
 
 return ZoneController

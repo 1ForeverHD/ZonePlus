@@ -369,11 +369,12 @@ function Zone:_partTouchedZone(part)
 	part.CanTouch = false
 	if trackingDict[part] then return end
 	local nextCheck = os.clock() + 0.1
+	local enterPosition = part.Position
 	local regionConstructor = self:_getRegionConstructor(part)
 	self.partEntered:Fire(part)
 	trackingDict[part] = self._maid:give(heartbeat:Connect(function()
 		local clockTime = os.clock()
-		if clockTime >= nextCheck then
+		if clockTime >= nextCheck and (part.Position - enterPosition).Magnitude > 1 then
 			----
 			local cooldown = enum.Accuracy.getProperty(self.accuracy)
 			nextCheck = clockTime + cooldown
@@ -414,7 +415,7 @@ function Zone:findPlayer(player)
 	return false
 end
 
-function Zone:findPart(part, regionConstructor)
+function Zone:findPart(part, regionConstructor, enterPosition, timeInZone)
 	-- I was originally going to fire a 'tiny ray' within the part to determine whether they are touching a
 	-- group part, however it turns out you can't do this. It appears instead a ray has to *pass through*
 	-- a parts boundary for it to be detected. Then I tried raycasting from below the zone to the part,
@@ -440,6 +441,16 @@ function Zone:findPart(part, regionConstructor)
 	local tinyCheckRegion = RotatedRegion3[finalRegionConstructor](part.CFrame, Vector3.new(0.1, 0.1, 0.1))
 	local touchingGroupParts = tinyCheckRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
 	if #touchingGroupParts > 0 then
+		local partPos = part.Position
+		if not ZoneController.verifyTouchingParts({partPos}, touchingGroupParts) then
+			local partSize = part.Size
+			--if not enterPosition or (enterPosition - partPos).Magnitude > math.max(partSize.X, partSize.Z)*2 or timeInZone > 1 then
+				-- In a rare scenario where a developer connects to a partEntered or partExited event *and*
+				-- their zone consists of meshparts and/or unionoperations, additional raycast checks need
+				-- to be performed (due to the weird nature of region3 not accurately detecting their bounds)
+				return false
+			--end
+		end
 		return true
 	end
 	-- Perform a 'whole body' region check to determine accurately whether the part is in the zone or not
@@ -495,14 +506,18 @@ function Zone:getRandomPoint()
 	local region = self.exactRegion
 	local size = region.Size
 	local cframe = region.CFrame
-	local touchingGroupParts
 	local random = Random.new()
 	local randomCFrame
+	local touchingGroupParts
+	local pointIsWithinZone
 	repeat
 		randomCFrame = cframe * CFrame.new(random:NextNumber(-size.X/2,size.X/2), random:NextNumber(-size.Y/2,size.Y/2), random:NextNumber(-size.Z/2,size.Z/2))
 		local randomRegion = RotatedRegion3.new(randomCFrame, Vector3.new(0.1, 0.1, 0.1))
 		touchingGroupParts = randomRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
-	until #touchingGroupParts > 0
+		if #touchingGroupParts > 0 then
+			pointIsWithinZone = ZoneController.verifyTouchingParts({randomCFrame.Position}, touchingGroupParts)
+		end
+	until pointIsWithinZone
 	local randomVector = randomCFrame.Position
 	return randomVector, touchingGroupParts
 end
