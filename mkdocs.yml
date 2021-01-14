@@ -1,0 +1,48 @@
+
+site_name: ZonePlus
+site_description: Documentation for ZonePlus
+site_author: Ben Horton
+site_url: https://1ForeverHD.github.io/ZonePlus/
+
+repo_name: 1ForeverHD/ZonePlus
+repo_url: https://github.com/1ForeverHD/ZonePlus
+edit_uri: ""
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    #- navigation.instant
+    #- navigation.sections
+  palette:
+    primary: blue
+    accent: blue
+  highlightjs: true
+  hljs_languages:
+    - lua
+
+extra:
+  social:
+    - icon: fontawesome/brands/github-alt
+      link: https://github.com/1ForeverHD/
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/ForeverHD_
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/channel/UCj9QhyYCvhAwiBHA5B88pYg
+
+markdown_extensions:
+  - codehilite:
+      linenums: true
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - Home:
+    - About: index.md
+    - Installation: index.md
+    - Modules:
+      - Zone: index.md
+      - ZoneController: index.md
+  - Changelog:
+    - ZonePlus: test.md

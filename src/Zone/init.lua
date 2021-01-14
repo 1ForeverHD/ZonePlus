@@ -76,7 +76,7 @@ function Zone.new(group)
 			local signalName = triggerType..triggerEventUpper
 			self[signalName] = signal
 			signal.connectionsChanged:Connect(function(increment)
-				if triggerType == "localPlayer" and not localPlayer then
+				if triggerType == "localPlayer" and not localPlayer and increment == 1 then
 					error(("Can only connect to 'localPlayer%s' on the client!"):format(triggerEventUpper))
 				end
 				previousActiveConnections = activeConnections
@@ -120,7 +120,7 @@ end
 
 
 -- PRIVATE METHODS
-function Zone:_calculateRegion(tableOfParts)
+function Zone:_calculateRegion(tableOfParts, dontRound)
 	local bounds = {["Min"] = {}, ["Max"] = {}}
 	for boundType, details in pairs(bounds) do
 		details.Values = {}
@@ -172,8 +172,11 @@ function Zone:_calculateRegion(tableOfParts)
 	for boundName, boundDetail in pairs(bounds) do
 		for _, v in pairs(boundDetail.Values) do
 			local newTable = (boundName == "Min" and minBound) or maxBound
-			local roundOffset = (boundName == "Min" and -2) or 2
-			local newV = roundToFour(v+roundOffset) -- +-2 to ensures the zones region is not rounded down/up
+			local newV = v
+			if not dontRound then
+				local roundOffset = (boundName == "Min" and -2) or 2
+				newV = roundToFour(v+roundOffset) -- +-2 to ensures the zones region is not rounded down/up
+			end
 			table.insert(newTable, newV)
 		end
 	end
@@ -267,7 +270,9 @@ function Zone:_update()
 	end
 	
 	local region, boundMin, boundMax = self:_calculateRegion(groupParts)
+	local exactRegion, _, _ = self:_calculateRegion(groupParts, true)
 	self.region = region
+	self.exactRegion = exactRegion
 	self.boundMin = boundMin
 	self.boundMax = boundMax
 	local rSize = region.Size
@@ -487,7 +492,7 @@ function Zone:getParts()
 end
 
 function Zone:getRandomPoint()
-	local region = self.region
+	local region = self.exactRegion
 	local size = region.Size
 	local cframe = region.CFrame
 	local touchingGroupParts
