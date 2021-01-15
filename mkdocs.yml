@@ -19,6 +19,7 @@ theme:
   palette:
     primary: blue
     accent: blue
+    scheme: preference
   highlightjs: true
   hljs_languages:
     - lua
@@ -33,18 +34,22 @@ extra:
       link: https://www.youtube.com/channel/UCj9QhyYCvhAwiBHA5B88pYg
 
 markdown_extensions:
-  - codehilite:
-      linenums: true
   - admonition
+  - codehilite:
+      guess_lang: false
   - toc:
       permalink: true
+  - pymdownx.superfences
 
 nav:
   - Home:
-    - About: index.md
+    - Introduction: index.md
+    - Examples: examples.md
     - Installation: installation.md
+    - Method: method.md
     - Modules:
       - Zone: zone.md
       - ZoneController: zonecontroller.md
+    - Resources: installation.md
   - Contributing: contributing.md
   - Changelog: changelog.md
