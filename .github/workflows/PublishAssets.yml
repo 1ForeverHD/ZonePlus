@@ -3,7 +3,7 @@ name: PublishToRoblox
 on:
   push:
     branches: #  Act on master branch commit
-    - master
+    - main
 
 jobs:
   ci:
