@@ -50,6 +50,6 @@ nav:
     - Modules:
       - Zone: zone.md
       - ZoneController: zonecontroller.md
-    - Resources: installation.md
+    - Resources: resources.md
   - Contributing: contributing.md
   - Changelog: changelog.md

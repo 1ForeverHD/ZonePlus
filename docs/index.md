@@ -3,9 +3,9 @@
 [Zone module docs]: https://1foreverhd.github.io/ZonePlus/zone/
 [group]: https://1foreverhd.github.io/ZonePlus/zone/#new
 
-ZonePlus is a module that enables the construction of dynamic zones. These zones utilise region checking, raycasting and the new BasePart.CanTouch property to effectively determine players and parts within an area.
+ZonePlus is a module that enables the construction of dynamic zones. These zones utilise region checking, raycasting and the new BasePart.CanTouch property to effectively determine players and parts within their boundaries.
 
-A [zone] is a collection of [baseparts] that define its boundaries. Creating a zone is as simple as:
+Creating a zone is as simple as:
 
 ``` lua
 -- Assuming we place ZonePlus in ReplicatedStorage
@@ -14,7 +14,7 @@ local zoneGroup = workspace.SafeZoneGroup
 local zone = Zone.new(safeZoneGroup)
 ```
 
-A zone takes one paramater - a [group]. A group can be any non-basepart instance (such as a Model, Folder, etc) that contains children or descendant baseparts. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts.
+A zone takes one argument - a [group]. A group can be any non-basepart instance (such as a Model, Folder, etc) that contains children or descendant baseparts. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts.
 
 !!! info
     Zones are compatible with all BasePart classes, however it's recommended to use simple parts (blocks, balls, cylinders, wedges, etc) where possible as these are more efficient and accurate. Some classes for instance, such as MeshParts and UnionOperations, require additional raycast checks to verify their surface geometries.

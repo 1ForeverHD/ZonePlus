@@ -13,9 +13,9 @@ These categories then utilise unique methods to determine whether their correspo
 -------------------------------------
 #### LocalPlayer
 1. While a localplayer-connection is active...
-2. Perform a RotatedRegion3 check within the local player. A collective of all zone group parts is used as its whitelist.
+2. Perform a RotatedRegion3 check within the local player. An array of all zone group parts is used as its whitelist.
 3. Use this result to determine the zones the player is within.
-4. Update each of these returned zones which determine whether ``.localPlayerEntered`` or ``.localPlayerExited`` should be fired.
+4. Update each of these returned zones and determine whether ``.localPlayerEntered`` or ``.localPlayerExited`` should be fired.
 5. If active, calculate the clock time of the next check based upon the ``zone.accuracy`` enum.
 
 -------------------------------------
@@ -44,6 +44,7 @@ These categories then utilise unique methods to determine whether their correspo
       1. Perform a 'tiny region3 check' (of size ``(0.1, 0.1, 0.1)`` with the zones group parts as a whitelist) to verify the parts center is still within the zone.
       2. If this returns false, then it means the part is either on the outer bounds of the zone or exited. Now perform a whole-body RotatedRegion3 check, with the zones group parts as a whitelist.
       3. If this returns false, then the part has exited the zone. Fire ``.partExited(part)``, disconnect the tracking connection and set the parts ``.CanTouch`` property back to ``true``.
+      4. Else if the tracking connection is still active, calculate the clock time of the next check based upon the ``zone.accuracy`` enum.
 5. If all part-connections are disconnected, disconnect all touched events and end any tracking connections.
 
 -------------------------------------
