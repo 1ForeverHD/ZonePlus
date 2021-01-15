@@ -11,13 +11,13 @@ Creating a zone is as simple as:
 -- Assuming we place ZonePlus in ReplicatedStorage
 local Zone = require(game:GetService("ReplicatedStorage").Zone)
 local zoneGroup = workspace.SafeZoneGroup
-local zone = Zone.new(safeZoneGroup)
+local zone = Zone.new(zoneGroup)
 ```
 
-A zone takes one argument - a [group]. A group can be any non-basepart instance (such as a Model, Folder, etc) that contains children or descendant baseparts. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts.
+A zone takes one argument - a [group]. A group can be any non-basepart instance (such as a Model, Folder, etc) that contains children or descendant [baseparts]. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts.
 
 !!! info
-    Zones are compatible with all BasePart classes, however it's recommended to use simple parts (blocks, balls, cylinders, wedges, etc) where possible as these are more efficient and accurate. Some classes for instance, such as MeshParts and UnionOperations, require additional raycast checks to verify their surface geometries.
+    Zones are compatible with all basepart classes, however it's recommended to use simple parts (blocks, balls, cylinders, wedges, etc) where possible as these are more efficient and accurate. Some classes for instance, such as MeshParts and UnionOperations, require additional raycast checks to verify their surface geometries.
 
 Once constructed, you can utilise zone events to determine players, parts and the localplayer within. For instance, to listen for a player *entering* and *exiting* a zone, do:
 
