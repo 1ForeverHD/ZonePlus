@@ -1,3 +1,46 @@
+--[[zonecontroller:header
+## Functions - test automation
+
+#### getZones
+```lua
+local zonesArray = ZoneController.getZones()
+```
+
+----
+#### getCharacterRegion
+```lua
+local charRegion, regionCFrame, charSize = ZoneController.getCharacterRegion(player)
+```
+
+----
+#### getTouchingZones
+```lua
+local touchingZonesArray = ZoneController.getTouchingZones(player)
+```
+
+----
+#### getHeightOfParts
+```lua
+local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
+```
+
+----
+#### vectorIsBetweenYBounds
+```lua
+local bool = ZoneController.vectorIsBetweenYBounds(vector, tableOfParts)
+```
+
+----
+#### verifyTouchingParts
+```lua
+local bool = ZoneController.verifyTouchingParts(vectors, tableOfParts)
+```
+
+----
+]]
+
+
+
 -- LOCAL
 local ZoneController = {}
 local Maid = require(script.Parent.Maid)
