@@ -70,6 +70,58 @@ Disconnects all connections within the zone.
 
 
 
+## Events
+#### localPlayerEntered
+```lua
+zone.localPlayerEntered:Connect(function()
+    print("you entered the zone!")
+end)
+```
+
+----
+#### localPlayerExited
+```lua
+zone.localPlayerExited:Connect(function()
+    print("you exited the zone!")
+end)
+```
+
+----
+#### playerEntered
+```lua
+zone.playerEntered:Connect(function(player)
+    print(("player '%s' entered the zone!"):format(player.Name))
+end)
+```
+
+----
+#### playerExited
+```lua
+zone.playerExited:Connect(function(player)
+    print(("player '%s' exited the zone!"):format(player.Name))
+end)
+```
+
+----
+#### partEntered
+```lua
+zone.partEntered:Connect(function(part)
+    print(("part '%s' entered the zone!"):format(part.Name))
+end)
+```
+
+----
+#### partExited
+```lua
+zone.partExited:Connect(function(part)
+    print(("part '%s' exited the zone!"):format(part.Name))
+end)
+```
+
+----
+
+
+
 ## Properties
 #### accuracy
 *Default:* ``enum.Accuracy.High``
@@ -97,7 +149,6 @@ When ``true``, will prevent the internal ``_update()`` from being called multipl
 *Read-only*
 
 --]]
-
 
 
 -- LOCAL
