@@ -28,11 +28,11 @@ Once constructed, you can utilise zone events to determine players, parts and th
 
 ```lua
 zone.playerEntered:Connect(function(player)
-    print((%s entered the zone!):format(player.Name))
+    print(("%s entered the zone!"):format(player.Name))
 end)
 
 zone.playerExited:Connect(function(player)
-    print((%s exited the zone!):format(player.Name))
+    print(("%s exited the zone!"):format(player.Name))
 end)
 ```
 
