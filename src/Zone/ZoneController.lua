@@ -1,4 +1,4 @@
---[[ZoneController:header
+--[[zonecontroller:header
 ## Functions
 
 #### getZones
