@@ -1,5 +1,5 @@
 --[[zonecontroller:header
-## Functions
+## Functions - test automation
 
 #### getZones
 ```lua
