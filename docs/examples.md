@@ -26,4 +26,6 @@
 ### Ambient Areas
 <video src="https://thumbs.gfycat.com/TangibleFamiliarBufeo-mobile.mp4" controls></video>
 
-All examples can be found, viewed and edited at the [Playground](https://www.roblox.com/games/6166477769/ZonePlus-Playground).
+-------------------------------------
+
+All examples can be tested, viewed and edited at the [Playground](https://www.roblox.com/games/6166477769/ZonePlus-Playground).
