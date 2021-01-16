@@ -1,4 +1,4 @@
-## Functions - test automation
+## Functions
 
 #### getZones
 ```lua
