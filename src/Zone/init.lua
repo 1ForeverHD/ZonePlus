@@ -518,28 +518,45 @@ end
 
 function Zone:_partTouchedZone(part)
 	local trackingDict = self.trackingTouchedTriggers["part"]
-	part.CanTouch = false
 	if trackingDict[part] then return end
-	local nextCheck = os.clock() + 0.1
+	local nextCheck = 0
+	local verifiedEntrance = false
 	local enterPosition = part.Position
+	local enterTime = os.clock()
+	local exitPosition
 	local regionConstructor = self:_getRegionConstructor(part)
-	self.partEntered:Fire(part)
-	trackingDict[part] = self._maid:give(heartbeat:Connect(function()
+	local partMaid = self._maid:give(Maid.new())
+	trackingDict[part] = partMaid
+	part.CanTouch = false
+	partMaid:give(heartbeat:Connect(function()
 		local clockTime = os.clock()
-		if clockTime >= nextCheck and (part.Position - enterPosition).Magnitude > 1 then
+		if clockTime >= nextCheck then
 			----
 			local cooldown = enum.Accuracy.getProperty(self.accuracy)
 			nextCheck = clockTime + cooldown
 			----
 			local withinZone = self:findPart(part, regionConstructor)
-			if not withinZone then
-				trackingDict[part]:Disconnect()
-				trackingDict[part] = nil
-				part.CanTouch = true
+			if not verifiedEntrance then
+				if withinZone then
+					verifiedEntrance = true
+					self.partEntered:Fire(part)
+				elseif (part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown then
+					-- Even after the part has exited the zone, we track it for a brief period of time based upon the criteria
+					-- in the line above to ensure the .touched behaviours are not abused
+					partMaid:clean()
+				end
+			elseif not withinZone then
+				verifiedEntrance = false
+				enterPosition = part.Position
+				enterTime = os.clock()
 				self.partExited:Fire(part)
 			end
 		end
 	end))
+	partMaid:give(function()
+		trackingDict[part] = nil
+		part.CanTouch = true
+	end)
 end
 
 function Zone:_getRegionConstructor(part)
@@ -600,15 +617,13 @@ function Zone:findPart(part, regionConstructor, enterPosition, timeInZone)
 	local tinyCheckRegion = RotatedRegion3[finalRegionConstructor](part.CFrame, Vector3.new(0.1, 0.1, 0.1))
 	local touchingGroupParts = tinyCheckRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
 	if #touchingGroupParts > 0 then
-		local partPos = part.Position
-		if not ZoneController.verifyTouchingParts({partPos}, touchingGroupParts) then
-			local partSize = part.Size
-			--if not enterPosition or (enterPosition - partPos).Magnitude > math.max(partSize.X, partSize.Z)*2 or timeInZone > 1 then
-				-- In a rare scenario where a developer connects to a partEntered or partExited event *and*
-				-- their zone consists of meshparts and/or unionoperations, additional raycast checks need
-				-- to be performed (due to the weird nature of region3 not accurately detecting their bounds)
-				return false
-			--end
+		local partSizeXHalf = part.Size.X/2
+		local pointsToVerify = {
+			(partCFrame * CFrame.new(-partSizeXHalf, 0, 0)).Position,
+			(partCFrame * CFrame.new(partSizeXHalf, 0, 0)).Position,
+		}
+		if not ZoneController.verifyTouchingParts(pointsToVerify, touchingGroupParts) then
+			return false
 		end
 		return true
 	end
