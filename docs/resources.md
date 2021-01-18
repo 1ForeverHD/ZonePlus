@@ -5,4 +5,4 @@
 
 -------------------------------------
 
-If you would like to submit a video tutorial or port of ZonePlus to be added to Resources, [open an issue](https://github.com/1ForeverHD/ZonePlus/issues) or reach out to [ForeverHD on the devforum](https://devforum.roblox.com/u/ForeverHD/summary).
+If you would like to submit a resource (such as a video tutorial, port, etc), please see [contributing](https://1foreverhd.github.io/ZonePlus/contributing/).
