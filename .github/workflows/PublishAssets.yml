@@ -1,4 +1,4 @@
-name: PublishToRoblox
+name: Publish To Roblox
 
 on:
   push:
