@@ -51,5 +51,5 @@ nav:
       - Zone: zone.md
       - ZoneController: zonecontroller.md
     - Resources: resources.md
-  - Contributing: contributing.md
+  - Contributing: CONTRIBUTING.md
   - Changelog: changelog.md
