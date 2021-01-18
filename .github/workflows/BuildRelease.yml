@@ -19,7 +19,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build plugin
-        run: rojo build sr/default.project.json --output zoneplus.rbxm
+        run: rojo build src/default.project.json --output ZonePlus.rbxm
 
       - name: Create release
         id: create_release
@@ -37,6 +37,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./zoneplus.rbxm
-          asset_name: zoneplus.rbxm
+          asset_path: ./ZonePlus.rbxm
+          asset_name: ZonePlus.rbxm
           asset_content_type: application/xml
