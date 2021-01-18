@@ -3,7 +3,7 @@
 [zone]: https://1foreverhd.github.io/ZonePlus/zone/
 [Zone module docs]: https://1foreverhd.github.io/ZonePlus/zone/
 
-ZonePlus is a module that enables the construction of dynamic zones. These zones utilise region checking, raycasting and the new [BasePart.CanTouch] property to effectively determine players and parts within their boundaries.
+ZonePlus is a module enabling the construction of dynamic zones. These zones utilise region checking, raycasting and the new [BasePart.CanTouch] property to effectively determine players and parts within their boundaries.
 
 Creating a zone is as simple as:
 

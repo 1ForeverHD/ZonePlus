@@ -47,7 +47,7 @@ nav:
     - Examples: examples.md
     - Installation: installation.md
     - Method: method.md
-    - Modules:
+    - API:
       - Zone: zone.md
       - ZoneController: zonecontroller.md
     - Resources: resources.md
