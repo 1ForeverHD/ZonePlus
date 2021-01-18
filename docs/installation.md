@@ -7,7 +7,7 @@
 
 ## Method 2 - Download from Releases
 1. Visit the [latest release](https://github.com/1ForeverHD/ZonePlus/releases/latest).
-2. Under *Assets*, download ``Zone.rbxm``.
+2. Under *Assets*, download ``ZonePlus.rbxm``.
 3. Within studio, navigate to MODEL -> Model and insert the file anywhere within ``ReplicatedStorage``. 
 
 -------------------------------------
