@@ -21,22 +21,15 @@ jobs:
       - name: Build plugin
         run: rojo build src/default.project.json --output ZonePlus.rbxm
 
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1.1.0
+      - name: Git Release
+        uses: anton-yurchenko/git-release@v3.4.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRAFT_RELEASE: "false"
+          PRE_RELEASE: "false"
+          CHANGELOG_FILE: "docs/changelog.md"
+          ALLOW_EMPTY_CHANGELOG: "false"
+          ALLOW_TAG_PREFIX: "true"
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: true
-
-      - name: Upload release assets
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./ZonePlus.rbxm
-          asset_name: ZonePlus.rbxm
-          asset_content_type: application/xml
+          args: |
+              ./ZonePlus.rbxm
