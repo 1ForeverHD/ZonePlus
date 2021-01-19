@@ -23,7 +23,7 @@
 - Ensure your report includes a detailed explanation of the problem with any relavent images (such as console errors).
 
 ## Submitting a resource (video tutorial port, etc)
-- Resources to improve the usability of this project are welcome with open arms!
+- Resources to improve the usability of this project are much welcome!
 - Approved resources are featured in [resources] and potentially the [discussion thread].
 - To submit a resource, open an issue or reach out to [ForeverHD on the devforum].
 
