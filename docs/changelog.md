@@ -1,3 +1,12 @@
+## [2.0.4] - 2020-06-27
+test
+
+## [2.0.3] - 2020-06-27
+test
+
+## [2.0.2] - 2020-06-27
+test
+
 ## [2.0.1] - 2020-06-27
 ### Added
 - Non-player part checking! (see methods below)
