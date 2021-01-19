@@ -1,13 +1,4 @@
-## [2.0.4] - 2020-06-27
-test
-
-## [2.0.3] - 2020-06-27
-test
-
-## [2.0.2] - 2020-06-27
-test
-
-## [2.0.1] - 2020-06-27
+## [2.0.0] - January 19 2021
 ### Added
 - Non-player part checking! (see methods below)
 - Infinite zone volume, zero change in performance - zones can now be as large as you like with no additional impact to performance assuming characters/parts entering the zone remain their normal size or relatively small
@@ -41,7 +32,3 @@ test
 ### Fixed
 - Rotational and complex geometry detection
 - ``getRandomPoints()`` inaccuracies
-
-
-## [2.0.0] - 2020-06-26
-test
