@@ -24,9 +24,6 @@ theme:
   hljs_languages:
     - lua
 
-extra_css:
-  - stylesheets/tags.css
-
 extra_javascript:
   - javascripts/tags.js
 
