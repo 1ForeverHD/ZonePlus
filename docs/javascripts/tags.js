@@ -3,12 +3,13 @@ const style = `.tag {
 	line-height: .8rem;
 	padding: 5px;
 	margin-left: 7px !important;
-	margin: 0;
+	margin: 0 !important; 
 	background-clip: padding-box;
 	border-radius: 3px;
 	display: inline-block;
 	font-size: .7rem;
 	font-family: "Roboto";
+	font-weight: normal;
 
 }
 
@@ -20,12 +21,12 @@ const style = `.tag {
 	background-color: rgb(42, 157, 143);
 }
 
-.server-only {
+.client-only {
 	background-color: rgb(89, 140, 206);
 }
 
-.client-only {
-	background-color: rgb(216, 142, 85);
+.server-only {
+	background-color: rgb(204, 134, 80);
 }
 
 .deprecated {
