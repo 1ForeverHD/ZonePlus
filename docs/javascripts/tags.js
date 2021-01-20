@@ -1,9 +1,9 @@
 const style = `.tag {
 	color: #ffffff;
-	font-weight:  bold;
 	line-height: .8rem;
 	padding: 5px;
-	margin: 0 !important;
+	margin-left: 10px !important;
+	margin: 0;
 	background-clip: padding-box;
 	border-radius: 5px;
 	display: inline-block;
