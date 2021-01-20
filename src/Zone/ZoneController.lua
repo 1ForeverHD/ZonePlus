@@ -355,7 +355,7 @@ function ZoneController.getCharacterRegion(player)
 	local char = player.Character
 	local head = char and char:FindFirstChild("Head")
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not(hrp or head) then return nil end
+	if not(hrp and head) then return nil end
 	local headY = head.Size.Y
 	local hrpSize = hrp.Size
 	local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
