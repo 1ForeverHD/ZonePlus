@@ -70,7 +70,7 @@ Disconnects all connections within the zone.
 
 
 ## Events
-#### localPlayerEntered
+#### localPlayerEntered  {client-only}
 ```lua
 zone.localPlayerEntered:Connect(function()
     print("you entered the zone!")
@@ -80,7 +80,7 @@ end)
 ----
 #### localPlayerExited
 ```lua
-zone.localPlayerExited:Connect(function()
+zone.localPlayerExited:Connect(function() {client-only}
     print("you exited the zone!")
 end)
 ```
@@ -143,10 +143,8 @@ local bool = zone.respectUpdateQueue --[default: 'true']
 When ``true``, will prevent the internal ``_update()`` from being called multiple times within a 0.1 second period.
 
 ----
-#### region
-*Read-only*
+#### region {read-only}
 
 ----
-#### volume
-*Read-only*
+#### volume {read-only}
 
