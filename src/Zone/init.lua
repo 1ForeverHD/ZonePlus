@@ -124,20 +124,23 @@ end)
 
 ## Properties
 #### accuracy
-*Default:* ``enum.Accuracy.High``
-
+```lua
+local accuracyEnumId = zone.accuracy --[default: 'Enum.enums.Accuracy.High']
+```
 To change ``accuracy`` it's recommended you use [setAccuracy].
 
 ----
 #### autoUpdate
-*Default:* ``true``
-
+```lua
+local bool = zone.autoUpdate --[default: 'true']
+```
 When ``true``, the zone will update when its group parts change size or position, or when a descendant group part is added or removed from the group.
 
 ----
 #### respectUpdateQueue
-*Default:* ``true``
-
+```lua
+local bool = zone.respectUpdateQueue --[default: 'true']
+```
 When ``true``, will prevent the internal ``_update()`` from being called multiple times within a 0.1 second period.
 
 ----

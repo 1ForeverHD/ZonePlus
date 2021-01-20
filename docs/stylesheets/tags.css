@@ -1,0 +1,34 @@
+.tag {
+	color: #ffffff;
+	font-weight:  bold;
+	line-height: .8rem;
+	padding: 5px;
+	background-clip: padding-box;
+	border-radius: 5px;
+	margin-left: 10px !important;
+	display: inline-block;
+	font-size: .7rem;
+}
+.read-only {
+	background-color: rgb(12, 95, 78);
+}
+
+.static {
+	background-color: rgb(230, 126, 34);
+}
+
+.server-only {
+	background-color: rgb(52, 155, 235);
+}
+
+.client-only {
+	background-color: rgb(162, 52, 235);
+}
+
+.deprecated {
+	background-color: rgb(255, 0, 0);
+}
+
+.chainable {
+	background-color: rgb(255, 0, 0);
+}

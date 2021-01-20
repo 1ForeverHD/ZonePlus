@@ -24,6 +24,12 @@ theme:
   hljs_languages:
     - lua
 
+extra_css:
+  - stylesheets/tags.css
+
+extra_javascript:
+  - javascripts/tags.js
+
 extra:
   social:
     - icon: fontawesome/brands/github-alt
@@ -51,5 +57,6 @@ nav:
       - Zone: zone.md
       - ZoneController: zonecontroller.md
     - Resources: resources.md
+    - test: test.md
   - Contributing: contributing.md
   - Changelog: changelog.md
