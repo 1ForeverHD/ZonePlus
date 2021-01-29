@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Create plugin release
+    name: Create release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
