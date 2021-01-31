@@ -25,7 +25,7 @@
 - Zones now act as a 'collective' which has significantly improved and optimised player and localplayer detection
 - Removed all original aliases and events, including ``:initLoop()`` which no longer has to be called (connections are detected and handled internally automatically)
 - Replaced frustrating require() dependencies with static modules
-- Made Icon the parent module and others as descendants
+- Made Zone the parent module and others as descendants
 - Removed the ``additonalHeight`` constructor argument - this caused confusion and added additional complexities to support
 - ``:getRandomPoint()`` now returns ``randomVector, touchingGroupParts`` instead of ``randomCFrame, hitPart, hitIntersection``
 

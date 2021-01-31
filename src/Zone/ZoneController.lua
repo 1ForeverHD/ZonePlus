@@ -1,4 +1,4 @@
---[[ zonecontroller:header
+--[[ zone_controller:header
 ## Functions
 
 #### getZones
@@ -37,7 +37,6 @@ local bool = ZoneController.verifyTouchingParts(vectors, tableOfParts)
 ```
 
 ----
-
 --]]
 
 
