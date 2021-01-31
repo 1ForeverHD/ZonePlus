@@ -1,6 +1,6 @@
 - [Model](https://www.roblox.com/library/6245329519/ZonePlus)
 - [Playground](https://www.roblox.com/games/6166477769/ZonePlus-Playground)
-- [Discussion](https://devforum.roblox.com/t/zoneplus/397465)
+- [Discussion](https://devforum.roblox.com/t/zoneplus-v2/1017701)
 - [Repository](https://github.com/1ForeverHD/ZonePlus)
 
 -------------------------------------
