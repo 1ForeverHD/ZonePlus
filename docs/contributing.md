@@ -1,4 +1,4 @@
-[discussion thread]: https://devforum.roblox.com/t/zone-retrieving-players-within-an-area-zone/397465
+[discussion thread]: https://devforum.roblox.com/t/zoneplus-v2/1017701
 [resources]: https://1foreverhd.github.io/ZonePlus/resources/
 [Material for MKDocs]: https://squidfunk.github.io/mkdocs-material/
 [ForeverHD on the devforum]: https://devforum.roblox.com/u/ForeverHD/summary
