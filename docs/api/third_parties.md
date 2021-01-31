@@ -1,4 +1,4 @@
-It's important only a single ZonePlus applications initiates at runtime otherwise issues may occur and its optimisations will diminish.
+It's important only a single ZonePlus applications initiates at runtime otherwise its optimisations will diminish and other issues may occur.
 
 A developer may rename and/or place their Zone module anywhere within ReplicatedStorage therefore it's important for third party runtime applications (such as admin commands) to check and reference this correctly.
 
