@@ -111,6 +111,9 @@ zone.partEntered:Connect(function(part)
 end)
 ```
 
+!!! warning
+This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
+
 ----
 #### partExited
 ```lua
@@ -118,6 +121,9 @@ zone.partExited:Connect(function(part)
     print(("part '%s' exited the zone!"):format(part.Name))
 end)
 ```
+
+!!! warning
+This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
 ----
 
