@@ -1,4 +1,4 @@
-name: Build and Release Draft
+name: Build and Release
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Create plugin release
+    name: Create release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,7 +18,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build plugin
+      - name: Build asset
         run: rojo build src/default.project.json --output ZonePlus.rbxm
 
       - name: Git Release
