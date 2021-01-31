@@ -50,9 +50,10 @@ nav:
     - Examples: examples.md
     - Installation: installation.md
     - Method: method.md
+    - Third Parties: third_parties.md
     - API:
-      - Zone: zone.md
-      - ZoneController: zonecontroller.md
+      - Zone: api/zone.md
+      - ZoneController: api/zone_controller.md
     - Resources: resources.md
   - Contributing: contributing.md
   - Changelog: changelog.md

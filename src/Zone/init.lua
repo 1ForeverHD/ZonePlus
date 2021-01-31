@@ -112,6 +112,9 @@ zone.partEntered:Connect(function(part)
 end)
 ```
 
+!!! warning
+	This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
+
 ----
 #### partExited
 ```lua
@@ -119,6 +122,9 @@ zone.partExited:Connect(function(part)
     print(("part '%s' exited the zone!"):format(part.Name))
 end)
 ```
+
+!!! warning
+	This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
 ----
 
@@ -155,6 +161,7 @@ When ``true``, will prevent the internal ``_update()`` from being called multipl
 --]]
 
 
+
 -- LOCAL
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
@@ -168,10 +175,15 @@ local Maid = require(script.Maid)
 local RotatedRegion3 = require(script.RotatedRegion3)
 local Signal = require(script.Signal)
 local ZonePlusReference = require(script.ZonePlusReference)
+local referenceObject = ZonePlusReference.getObject()
 local ZoneController = require(script.ZoneController)
-local Zone = {}
+local referenceLocation = (game:GetService("RunService"):IsClient() and "Client") or "Server"
+local referencePresent = referenceObject and referenceObject:FindFirstChild(referenceLocation)
+local Zone = (referencePresent and require(referenceObject.Value)) or {}
 Zone.__index = Zone
-ZonePlusReference.addToReplicatedStorage()
+if not referencePresent then
+	ZonePlusReference.addToReplicatedStorage()
+end
 
 
 
