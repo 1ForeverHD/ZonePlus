@@ -59,7 +59,7 @@ function Enum.createEnum(enumName, details)
 		end
 	}
 	for i, detail in pairs(details) do
-		assert(typeof(details) == "table", ("bad argument #2.%s - details must only be comprised of tables!"):format(i))
+		assert(typeof(detail) == "table", ("bad argument #2.%s - details must only be comprised of tables!"):format(i))
 		local name = detail[1]
 		assert(typeof(name) == "string", ("bad argument #2.%s.1 - detail name must be a string!"):format(i))
 		assert(typeof(not usedNames[name]), ("bad argument #2.%s.1 - the detail name '%s' already exists!"):format(i, name))
