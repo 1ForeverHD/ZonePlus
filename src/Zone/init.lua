@@ -154,6 +154,7 @@ When ``true``, will prevent the internal ``_update()`` from being called multipl
 ----
 #### groupParts
 {read-only}
+
 An array of baseparts, defined in the ``group`` constructor parameter, that form the zone.
 
 ----
