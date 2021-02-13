@@ -151,6 +151,11 @@ local bool = zone.respectUpdateQueue --[default: 'true']
 When ``true``, will prevent the internal ``_update()`` from being called multiple times within a 0.1 second period.
 
 ----
+#### groupParts
+{read-only}
+An array of baseparts, defined in the ``group`` constructor parameter, that form the zone.
+
+----
 #### region
 {read-only}
 
