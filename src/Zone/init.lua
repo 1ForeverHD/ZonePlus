@@ -218,7 +218,7 @@ An array of baseparts, defined in the ``group`` constructor parameter, that form
 -- LOCAL
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
-local heartbeat = runService.Heartbeat
+local heartbeat = runService.PostSimulation
 local localPlayer = runService:IsClient() and players.LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local httpService = game:GetService("HttpService")
