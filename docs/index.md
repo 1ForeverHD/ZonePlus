@@ -1,7 +1,11 @@
 [BasePart.CanTouch]: https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch
 [baseparts]: https://developer.roblox.com/en-us/api-reference/class/BasePart
 [zone]: https://1foreverhd.github.io/ZonePlus/zone/
-[Zone module docs]: https://1foreverhd.github.io/ZonePlus/zone/
+[Zone API]: https://1foreverhd.github.io/ZonePlus/zone/
+[Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
+[Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
+
+## Summary
 
 ZonePlus is a module enabling the construction of dynamic zones. These zones utilise region checking, raycasting and the new [BasePart.CanTouch] property to effectively determine players and parts within their boundaries.
 
@@ -39,11 +43,64 @@ end)
 !!! info
     On the client you may only wish to listen for the LocalPlayer (such as for an ambient system). To achieve this you would alternatively use the ``.localPlayer`` events.
 
+!!! important
+    Zone group parts must remain within the workspace for zones to fully work
+
 If you don't intend to frequently check for items entering and exiting a zone, you can utilise zone methods:
 
 ```lua
 local playersArray = zone:getPlayers()
 ```
 
-Discover the full set of methods, events and properties at the [Zone module docs].
+Discover the full set of methods, events and properties at the [Zone API].
+
+----
+
+## Optimisations
+Zones by default perform up to 10 checks per second around a *whole* players character. This behaviour can be changed by modifying the **Accuracy** and **Detection** of zones:
+
+### Accuracy
+This determines the *frequency* of checks per second.
+
+The accuracy of a zone can be changed two ways with a corresponding [Accuracy Enum]:
+
+1. Using the ``zone:setAccuracy(itemName)`` method:
+    ```lua
+    zone:setAccuracy("High")
+    ```
+
+2. Setting the ``zone.accuracy`` property:
+    ```lua
+    zone.accuracy = Zone.enum.Accuracy.High
+    ```
+
+By default accuracy is ``High``.
+
+!!! info
+    Modifying the accuracy of one zone may impact the accuracy of another due to the modules collaborative nature.
+
+
+### Detection
+This determines the *precision* of checks.
+
+The way a zone detects players and parts can be changed two ways with a corresponding [Detection Enum]:
+
+1. Using the ``zone:setDetection(itemName)`` method:
+    ```lua
+    zone:setDetection("Automatic")
+    ```
+
+2. Setting the ``zone.enterDetection`` and ``zone.exitDetection`` properties:
+    ```lua
+    zone.enterDetection = Zone.enum.Detection.Automatic
+    zone.exitDetection = Zone.enum.Detection.Automatic
+    ```
+
+By default enterDetection and exitDetection are ``Automatic``.
+
+!!! info
+    Modifying the detection of one zone may impact the detection of another due to the modules collaborative nature.
+
+!!! warning
+    Setting ``enterDetection`` to (``Zone.enum.Detection.WholeBody`` or ``Zone.enum.Detection.Automatic``) and ``exitDetection`` to ``Zone.enum.Detection.Centre`` will cause the entered and exit events to trigger rapidly when the player lies on the bounds of the zone.
 

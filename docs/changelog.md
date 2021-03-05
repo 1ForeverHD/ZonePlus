@@ -1,3 +1,15 @@
+## [2.1.0] - March 5 2021
+### Added
+- Detection Enum
+- ``zone.enterDetection``
+- ``zone.exitDetection``
+- ``zone:setDetection(enumItemName)``
+- An Optimisation section to Introduction
+
+
+
+--------
+
 ## [2.0.0] - January 19 2021
 ### Added
 - Non-player part checking! (see methods below)

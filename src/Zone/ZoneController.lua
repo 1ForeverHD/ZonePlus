@@ -63,6 +63,8 @@ local runService = game:GetService("RunService")
 local heartbeat = runService.Heartbeat
 local heartbeatConnections = {}
 local localPlayer = runService:IsClient() and players.LocalPlayer
+local playerExitDetections = {}
+local WHOLE_BODY_DETECTION_LIMIT = 729000 -- This is roughly the volume where Region3 checks begin to exceed 0.5% in Script Performance
 
 
 
@@ -85,12 +87,12 @@ local function fillOccupants(zonesAndOccupantsTable, zone, occupant)
 end
 
 local heartbeatActions = {
-	["player"] = function()
-		return ZoneController._getZonesAndPlayers(activeZones, activeZonesTotalVolume, true)
+	["player"] = function(recommendedDetection)
+		return ZoneController._getZonesAndPlayers(activeZones, activeZonesTotalVolume, true, recommendedDetection)
 	end,
-	["localPlayer"] = function()
+	["localPlayer"] = function(recommendedDetection)
 		local zonesAndOccupants = {}
-		local touchingZones = ZoneController.getTouchingZones(localPlayer, true)
+		local touchingZones = ZoneController.getTouchingZones(localPlayer, true, recommendedDetection)
 		for _, zone in pairs(touchingZones) do
 			if zone.activeTriggers["localPlayer"] then
 				fillOccupants(zonesAndOccupants, zone, localPlayer)
@@ -151,6 +153,7 @@ players.PlayerAdded:Connect(function(plr)
 end)
 players.PlayerRemoving:Connect(function(plr)
 	updateCharactersTotalVolume()
+	playerExitDetections[plr] = nil
 end)
 
 
@@ -191,6 +194,26 @@ function ZoneController._registerConnection(registeredZone, registeredTriggerTyp
 	end
 end
 
+-- This decides what to do if detection is 'Automatic'
+-- This is placed in ZoneController instead of the Zone object due to the ZoneControllers all-knowing group-minded logic
+function ZoneController.updateDetection(zone)
+	local detectionTypes = {
+		["enterDetection"] = "_currentEnterDetection",
+		["exitDetection"] = "_currentExitDetection",
+	}
+	for detectionType, currentDetectionName in pairs(detectionTypes) do
+		local detection = zone[detectionType]
+		if detection == enum.Detection.Automatic then
+			if charactersTotalVolume > WHOLE_BODY_DETECTION_LIMIT then
+				detection = enum.Detection.Centre
+			else
+				detection = enum.Detection.WholeBody
+			end
+		end
+		zone[currentDetectionName] = detection
+	end
+end
+
 function ZoneController._formHeartbeat(registeredTriggerType)
 	local heartbeatConnection = heartbeatConnections[registeredTriggerType]
 	if heartbeatConnection then return end
@@ -205,16 +228,22 @@ function ZoneController._formHeartbeat(registeredTriggerType)
 		local clockTime = os.clock()
 		if clockTime >= nextCheck then
 			local lowestAccuracy
+			local lowestDetection
 			for zone, _ in pairs(activeZones) do
 				if zone.activeTriggers[registeredTriggerType] then
 					local zAccuracy = zone.accuracy
 					if lowestAccuracy == nil or zAccuracy < lowestAccuracy then
 						lowestAccuracy = zAccuracy
 					end
+					ZoneController.updateDetection(zone)
+					local zDetection = zone._currentEnterDetection
+					if lowestDetection == nil or zDetection < lowestDetection then
+						lowestDetection = zDetection
+					end
 				end
 			end
 			local highestAccuracy = lowestAccuracy
-			local zonesAndOccupants = heartbeatActions[registeredTriggerType]()
+			local zonesAndOccupants = heartbeatActions[registeredTriggerType](lowestDetection)
 			for zone, _ in pairs(activeZones) do
 				if zone.activeTriggers[registeredTriggerType] then
 					local zAccuracy = zone.accuracy
@@ -281,7 +310,7 @@ function ZoneController._updateZoneDetails()
 	end
 end
 
-function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, onlyActiveZones)
+function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, onlyActiveZones, recommendedDetection)
 	local totalZoneVolume = zoneCustomVolume
 	if not totalZoneVolume then
 		for zone, _ in pairs(zonesDictToCheck) do
@@ -295,7 +324,7 @@ function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, 
 		-- then it's more efficient cast regions and rays within each character and
 		-- then determine the zones they belong to
 		for _, plr in pairs(players:GetPlayers()) do
-			local touchingZones = ZoneController.getTouchingZones(plr, onlyActiveZones)
+			local touchingZones = ZoneController.getTouchingZones(plr, onlyActiveZones, recommendedDetection)
 			for _, zone in pairs(touchingZones) do
 				if not onlyActiveZones or zone.activeTriggers["player"] then
 					fillOccupants(zonesAndOccupants, zone, plr)
@@ -363,8 +392,19 @@ function ZoneController.getCharacterRegion(player)
 	return charRegion, regionCFrame, charSize
 end
 
-function ZoneController.getTouchingZones(player, onlyActiveZones)
-	local charRegion = ZoneController.getCharacterRegion(player)
+function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDetection)
+	local exitDetection = playerExitDetections[player]
+	playerExitDetections[player] = nil
+	local finalDetection = exitDetection or recommendedDetection
+	local charRegion
+	if finalDetection == enum.Detection.WholeBody then
+		charRegion = ZoneController.getCharacterRegion(player)
+	else
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local regionCFrame = hrp and hrp.CFrame
+		charRegion = regionCFrame and RotatedRegion3.new(regionCFrame, Vector3.new(0.1, 0.1, 0.1))
+	end
 	if not charRegion then return {} end
 	--[[
 	local part = Instance.new("Part")
@@ -384,10 +424,17 @@ function ZoneController.getTouchingZones(player, onlyActiveZones)
 		local hrp = player.Character.HumanoidRootPart
 		local hrpCFrame = hrp.CFrame
 		local hrpSizeX = hrp.Size.X
-		local pointsToVerify = {
-			(hrpCFrame * CFrame.new(-hrpSizeX, 0, 0)).Position,
-			(hrpCFrame * CFrame.new(hrpSizeX, 0, 0)).Position,
-		}
+		local pointsToVerify
+		if finalDetection == enum.Detection.WholeBody then
+			pointsToVerify = {
+				(hrpCFrame * CFrame.new(-hrpSizeX, 0, 0)).Position,
+				(hrpCFrame * CFrame.new(hrpSizeX, 0, 0)).Position,
+			}
+		else
+			pointsToVerify = {
+				hrp.Position,
+			}
+		end
 		if not ZoneController.verifyTouchingParts(pointsToVerify, parts) then
 			return {}
 		end
@@ -398,8 +445,15 @@ function ZoneController.getTouchingZones(player, onlyActiveZones)
 		zonesDict[correspondingZone] = true
 	end
 	local touchingZonesArray = {}
+	local newExitDetection
 	for zone, _ in pairs(zonesDict) do
+		if newExitDetection == nil or zone._currentExitDetection < newExitDetection then
+			newExitDetection = zone._currentExitDetection
+		end
 		table.insert(touchingZonesArray, zone)
+	end
+	if newExitDetection then
+		playerExitDetections[player] = newExitDetection
 	end
 	return touchingZonesArray
 end

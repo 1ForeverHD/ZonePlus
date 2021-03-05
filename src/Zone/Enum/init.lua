@@ -66,9 +66,10 @@ function Enum.createEnum(enumName, details)
 		assert(typeof(not enumMetaFunctions[name]), ("bad argument #2.%s.1 - that name is reserved."):format(i, name))
 		usedNames[tostring(name)] = i
 		local value = detail[2]
-		assert(typeof(value) == "number" and math.ceil(value)/value == 1, ("bad argument #2.%s.2 - detail value must be an integer!"):format(i))
-		assert(typeof(not usedValues[value]), ("bad argument #2.%s.2 - the detail value '%s' already exists!"):format(i, value))
-		usedValues[tostring(value)] = i
+		local valueString = tostring(value)
+		--assert(typeof(value) == "number" and math.ceil(value)/value == 1, ("bad argument #2.%s.2 - detail value must be an integer!"):format(i))
+		assert(typeof(not usedValues[valueString]), ("bad argument #2.%s.2 - the detail value '%s' already exists!"):format(i, valueString))
+		usedValues[valueString] = i
 		local property = detail[3]
 		if property then
 			assert(typeof(not usedProperties[property]), ("bad argument #2.%s.3 - the detail property '%s' already exists!"):format(i, tostring(property)))
