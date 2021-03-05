@@ -121,10 +121,11 @@ end)
 ```
 
 !!! info
-This event only works for non-anchored parts
+This event works only for unanchored parts
+
 
 !!! warning
-    This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
+    This event will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
 ----
 #### partExited
@@ -135,10 +136,11 @@ end)
 ```
 
 !!! info
-This event only works for non-anchored parts
+This event works only for unanchored parts
+
 
 !!! warning
-    This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
+    This event will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
 ----
 
