@@ -1,6 +1,8 @@
 --[[ zone:header
 [Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
+[Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
 [setAccuracy]: https://1foreverhd.github.io/ZonePlus/zone/#setaccuracy
+[setDetection]: https://1foreverhd.github.io/ZonePlus/zone/#setdetection
 
 ## Construtors
 
@@ -57,7 +59,14 @@ Generates random points within the zones region until one falls within its bound
 ```lua
 zone:setAccuracy(enumIdOrName)
 ```
-Sets the frequency of checks based upon the [Accuracy Enum].
+Sets the frequency of checks based upon the [Accuracy Enum]. Defaults to 'High'.
+
+----
+#### setDetection
+```lua
+zone:setDetection(enumIdOrName)
+```
+Sets the precision of checks based upon the [Detection Enum]. Defaults to 'Automatic'.
 
 ----
 #### destroy
@@ -112,6 +121,9 @@ zone.partEntered:Connect(function(part)
 end)
 ```
 
+!!! info
+	This event only works for non-anchored parts
+
 !!! warning
     This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
@@ -123,6 +135,9 @@ zone.partExited:Connect(function(part)
 end)
 ```
 
+!!! info
+	This event only works for non-anchored parts
+
 !!! warning
     This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
@@ -133,9 +148,41 @@ end)
 ## Properties
 #### accuracy
 ```lua
-local accuracyEnumId = zone.accuracy --[default: 'Enum.enums.Accuracy.High']
+local accuracyEnumId = zone.accuracy --[default: 'Zone.enum.Accuracy.High']
 ```
-To change ``accuracy`` it's recommended you use [setAccuracy].
+To change ``accuracy`` you can use [setAccuracy] or do:
+
+```lua
+zone.accuracy = Zone.enum.Accuracy.ITEM_NAME
+```
+
+A list of Accuracy enum items can be found at [Accuracy Enum].
+
+----
+#### enterDetection
+```lua
+local enterDetection = zone.enterDetection --[default: 'Zone.enum.Detection.Automatic']
+```
+To change both detection types use [setDetection] otherwise to set individually do:
+
+```lua
+zone.enterDetection = Zone.enum.Detection.ITEM_NAME
+```
+
+A list of Detection enum items can be found at [Detection Enum].
+
+----
+#### exitDetection
+```lua
+local exitDetection = zone.exitDetection --[default: 'Zone.enum.Detection.Automatic']
+```
+To change both detection types use [setDetection] otherwise to set individually do:
+
+```lua
+zone.exitDetection = Zone.enum.Detection.ITEM_NAME
+```
+
+A list of Detection enum items can be found at [Detection Enum].
 
 ----
 #### autoUpdate
@@ -190,6 +237,7 @@ Zone.__index = Zone
 if not referencePresent then
 	ZonePlusReference.addToReplicatedStorage()
 end
+Zone.enum = enum
 
 
 
@@ -227,6 +275,11 @@ function Zone.new(group)
 	self.activeTriggers = {}
 	self.occupants = {}
 	self.trackingTouchedTriggers = {}
+	self.enterDetection = enum.Detection.Automatic
+	self.exitDetection = enum.Detection.Automatic
+	self._currentEnterDetection = nil -- This will update automatically internally
+	self._currentExitDetection = nil -- This will also update automatically internally
+	self.totalPartVolume = 0
 
 	-- Signals
 	self.updated = maid:give(Signal.new())
@@ -414,16 +467,23 @@ function Zone:_update()
 	-- child is removed or added from a container (anything which isn't a basepart)
 	local function update()
 		if self.autoUpdate then
-			coroutine.wrap(function()
-				if self.respectUpdateQueue then
-					updateQueue = updateQueue + 1
-					wait(0.1)
-					updateQueue = updateQueue - 1
+			local executeTime = os.clock()
+			if self.respectUpdateQueue then
+				updateQueue += 1
+				executeTime += 0.1
+			end
+			local updateConnection
+			updateConnection = runService.Heartbeat:Connect(function()
+				if os.clock() >= executeTime then
+					updateConnection:Disconnect()
+					if self.respectUpdateQueue then
+						updateQueue -= 1
+					end
+					if updateQueue == 0 and self.zoneId then
+						self:_update()
+					end
 				end
-				if updateQueue == 0 and self.zoneId then
-					self:_update()
-				end
-			end)()
+			end)
 		end
 	end
 	local partProperties = {"Size", "Position"}
@@ -538,6 +598,9 @@ function Zone:_disconnectTouchedConnection(triggerType)
 	end
 end
 
+local function round(number, decimalPlaces)
+	return math.round(number * 10^decimalPlaces) * 10^-decimalPlaces
+end
 function Zone:_partTouchedZone(part)
 	local trackingDict = self.trackingTouchedTriggers["part"]
 	if trackingDict[part] then return end
@@ -550,6 +613,10 @@ function Zone:_partTouchedZone(part)
 	local partMaid = self._maid:give(Maid.new())
 	trackingDict[part] = partMaid
 	part.CanTouch = false
+	--
+	local partVolume = round((part.Size.X * part.Size.Y * part.Size.Z), 5)
+	self.totalPartVolume += partVolume
+	--
 	partMaid:give(heartbeat:Connect(function()
 		local clockTime = os.clock()
 		if clockTime >= nextCheck then
@@ -578,6 +645,7 @@ function Zone:_partTouchedZone(part)
 	partMaid:give(function()
 		trackingDict[part] = nil
 		part.CanTouch = true
+		self.totalPartVolume = round((self.totalPartVolume - partVolume), 5)
 	end)
 end
 
@@ -604,7 +672,8 @@ function Zone:findLocalPlayer()
 end
 
 function Zone:findPlayer(player)
-	local touchingZones = ZoneController.getTouchingZones(player)
+	ZoneController.updateDetection(self)
+	local touchingZones = ZoneController.getTouchingZones(player, false, self._currentEnterDetection)
 	for _, zone in pairs(touchingZones) do
 		if zone == self then
 			return true
@@ -659,8 +728,9 @@ function Zone:findPart(part, regionConstructor, enterPosition, timeInZone)
 end
 
 function Zone:getPlayers()
+	ZoneController.updateDetection(self)
 	local playersArray = {}
-	local zonesAndOccupants = ZoneController._getZonesAndPlayers({self = true}, self.volume)
+	local zonesAndOccupants = ZoneController._getZonesAndPlayers({self = true}, self.volume, false, self._currentEnterDetection)
 	local occupantsDict = zonesAndOccupants[self]
 	if occupantsDict then
 		for plr, _ in pairs(occupantsDict) do
@@ -725,6 +795,23 @@ function Zone:setAccuracy(enumIdOrName)
 		end
 	end
 	self.accuracy = enumId
+end
+
+function Zone:setDetection(enumIdOrName)
+	local enumId = tonumber(enumIdOrName)
+	if not enumId then
+		enumId = enum.Detection[enumIdOrName]
+		if not enumId then
+			error(("'%s' is an invalid enumName!"):format(enumIdOrName))
+		end
+	else
+		local enumName = enum.Detection.getName(enumId)
+		if not enumName then
+			error(("%s is an invalid enumId!"):format(enumId))
+		end
+	end
+	self.enterDetection = enumId
+	self.exitDetection = enumId
 end
 
 function Zone:destroy()
