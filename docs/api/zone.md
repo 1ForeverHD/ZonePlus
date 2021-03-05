@@ -1,5 +1,7 @@
 [Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
+[Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
 [setAccuracy]: https://1foreverhd.github.io/ZonePlus/zone/#setaccuracy
+[setDetection]: https://1foreverhd.github.io/ZonePlus/zone/#setdetection
 
 ## Construtors
 
@@ -56,7 +58,14 @@ Generates random points within the zones region until one falls within its bound
 ```lua
 zone:setAccuracy(enumIdOrName)
 ```
-Sets the frequency of checks based upon the [Accuracy Enum].
+Sets the frequency of checks based upon the [Accuracy Enum]. Defaults to 'High'.
+
+----
+#### setDetection
+```lua
+zone:setDetection(enumIdOrName)
+```
+Sets the precision of checks based upon the [Detection Enum]. Defaults to 'Automatic'.
 
 ----
 #### destroy
@@ -111,6 +120,9 @@ zone.partEntered:Connect(function(part)
 end)
 ```
 
+!!! info
+This event only works for non-anchored parts
+
 !!! warning
     This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
@@ -122,6 +134,9 @@ zone.partExited:Connect(function(part)
 end)
 ```
 
+!!! info
+This event only works for non-anchored parts
+
 !!! warning
     This connection will not fully optimise *until* [BasePart.CanTouch](https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch) goes [live](https://developer.roblox.com/en-us/resources/release-note/Release-Notes-for-460).
 
@@ -132,9 +147,41 @@ end)
 ## Properties
 #### accuracy
 ```lua
-local accuracyEnumId = zone.accuracy --[default: 'Enum.enums.Accuracy.High']
+local accuracyEnumId = zone.accuracy --[default: 'Zone.enum.Accuracy.High']
 ```
-To change ``accuracy`` it's recommended you use [setAccuracy].
+To change ``accuracy`` you can use [setAccuracy] or do:
+
+```lua
+zone.accuracy = Zone.enum.Accuracy.ITEM_NAME
+```
+
+A list of Accuracy enum items can be found at [Accuracy Enum].
+
+----
+#### enterDetection
+```lua
+local enterDetection = zone.enterDetection --[default: 'Zone.enum.Detection.Automatic']
+```
+To change both detection types use [setDetection] otherwise to set individually do:
+
+```lua
+zone.enterDetection = Zone.enum.Detection.ITEM_NAME
+```
+
+A list of Detection enum items can be found at [Detection Enum].
+
+----
+#### exitDetection
+```lua
+local exitDetection = zone.exitDetection --[default: 'Zone.enum.Detection.Automatic']
+```
+To change both detection types use [setDetection] otherwise to set individually do:
+
+```lua
+zone.exitDetection = Zone.enum.Detection.ITEM_NAME
+```
+
+A list of Detection enum items can be found at [Detection Enum].
 
 ----
 #### autoUpdate
