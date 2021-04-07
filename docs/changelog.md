@@ -1,3 +1,11 @@
+## [2.1.1] - April 7 2021
+### Fixed
+- nil comparison within ZoneController getTouchingZones line 450
+
+
+
+--------
+
 ## [2.1.0] - March 5 2021
 ### Added
 - Detection Enum
