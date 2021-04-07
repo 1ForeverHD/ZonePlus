@@ -283,6 +283,9 @@ function Zone.new(group)
 	self._currentExitDetection = nil -- This will also update automatically internally
 	self.totalPartVolume = 0
 
+	-- This updates _currentEnterDetection and _currentExitDetection right away to prevent nil comparisons
+	ZoneController.updateDetection(self)
+
 	-- Signals
 	self.updated = maid:give(Signal.new())
 	local triggerTypes = {
