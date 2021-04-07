@@ -39,27 +39,35 @@ h4 {
     display: inline;
 }`
 
-var inner = document.body.innerHTML
-inner = inner.replace(/{read-only}/g, '<p class="tag read-only">read-only</p>');
-inner = inner.replace(/{static}/g, '<p class="tag static">static</p>');
-inner = inner.replace(/{server-only}/g, '<p class="tag server-only">server-only</p>');
-inner = inner.replace(/{client-only}/g, '<p class="tag client-only">client-only</p>');
-inner = inner.replace(/{deprecated}/g, '<p class="tag deprecated">deprecated</p>');
-inner = inner.replace(/{chainable}/g, '<p class="tag chainable">chainable</p>');
-inner = inner.replace(/{unstable}/g, '<p class="tag unstable">unstable</p>');
-inner = inner.replace(/{toggleable}/g, '<p class="tag toggleable">toggleable</p>');
-document.body.innerHTML = inner
+var replaceStuff = [
+	["{read-only}", '<p class="tag read-only">read-only</p>'],
+	["{static}", '<p class="tag static">static</p>'],
+	["{server-only}", '<p class="tag server-only">server-only</p>'],
+	["{client-only}", '<p class="tag client-only">client-only</p>'],
+	["{deprecated}", '<p class="tag deprecated">deprecated</p>'],
+	["{chainable}", '<p class="tag chainable">chainable</p>'],
+	["{unstable}", '<p class="tag unstable">unstable</p>'],
+	["{toggleable}", '<p class="tag toggleable">toggleable</p>'],
+];
+
+function replace(element, from, to) {
+	if (element.childNodes.length) {
+		element.childNodes.forEach(child => replace(child, from, to));
+	} else {
+		const cont = element.textContent;
+		if (cont && cont.includes(from)) {
+			var newElement = document.createElement("p");
+			element.parentNode.replaceWith(newElement);
+			newElement.outerHTML = to;
+		}
+	}
+};
+
+for (var i = 0; i < replaceStuff.length; i++) {
+	replace(document.body, replaceStuff[i][0], replaceStuff[i][1]);
+}
 
 const styleElement = document.createElement("style")
 styleElement.innerHTML = style
 
 document.head.appendChild(styleElement)
-
-function cleaner(el) {
-    if (el.innerHTML === '&nbsp;' || el.innerHTML === '') {
-        el.parentNode.removeChild(el);
-    }
-}
-
-const elements = document.querySelectorAll('p');
-elements.forEach(cleaner);
