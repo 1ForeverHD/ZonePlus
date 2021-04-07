@@ -38,7 +38,7 @@ theme:
     - lua
 
 extra_javascript:
-  - javascripts/tags.js
+  #- javascripts/tags.js
 
 extra:
   social:
