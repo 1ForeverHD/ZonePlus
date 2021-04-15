@@ -1,3 +1,12 @@
+## [2.1.2] - April 15 2021
+### Fixed
+- ``playerExiting`` not firing when the player dies and respawns immidately within the zone.
+- A rare nil checking bug within ``getTouchingZones`` in ``ZoneController``.
+
+
+
+--------
+
 ## [2.1.1] - April 7 2021
 ### Fixed
 - nil comparison within ZoneController getTouchingZones line 450

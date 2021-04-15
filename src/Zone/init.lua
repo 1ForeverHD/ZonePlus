@@ -545,8 +545,9 @@ function Zone:_updateOccupants(triggerType, newOccupants)
 	local exitedSignal = self[triggerType.."Exited"]
 	local enteredSignal = self[triggerType.."Entered"]
 	if exitedSignal then
-		for occupant, _ in pairs(previousOccupants) do
-			if newOccupants[occupant] == nil then
+		for occupant, prevCharacter in pairs(previousOccupants) do
+			local newCharacter = newOccupants[occupant]
+			if newCharacter == nil or newCharacter ~= prevCharacter then
 				previousOccupants[occupant] = nil
 				exitedSignal:Fire(occupant)
 			end
@@ -555,7 +556,7 @@ function Zone:_updateOccupants(triggerType, newOccupants)
 	if enteredSignal then
 		for occupant, _ in pairs(newOccupants) do
 			if previousOccupants[occupant] == nil then
-				previousOccupants[occupant] = true
+				previousOccupants[occupant] = occupant.Character
 				enteredSignal:Fire(occupant)
 			end
 		end

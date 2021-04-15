@@ -83,7 +83,7 @@ local function fillOccupants(zonesAndOccupantsTable, zone, occupant)
 		occupantsDict = {}
 		zonesAndOccupantsTable[zone] = occupantsDict
 	end
-	occupantsDict[occupant] = true
+	occupantsDict[occupant] = (occupant.Character or true)
 end
 
 local heartbeatActions = {
@@ -442,7 +442,9 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 	local zonesDict = {}
 	for _, part in pairs(parts) do
 		local correspondingZone = partToZoneDict[part]
-		zonesDict[correspondingZone] = true
+		if correspondingZone then
+			zonesDict[correspondingZone] = true
+		end
 	end
 	local touchingZonesArray = {}
 	local newExitDetection
