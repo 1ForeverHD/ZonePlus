@@ -1,7 +1,7 @@
 [Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
 [Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
-[setAccuracy]: https://1foreverhd.github.io/ZonePlus/zone/#setaccuracy
-[setDetection]: https://1foreverhd.github.io/ZonePlus/zone/#setdetection
+[setAccuracy]: https://1foreverhd.github.io/ZonePlus/api/zone/#setaccuracy
+[setDetection]: https://1foreverhd.github.io/ZonePlus/api/zone/#setdetection
 
 ## Construtors
 

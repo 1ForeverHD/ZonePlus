@@ -1,7 +1,7 @@
 [BasePart.CanTouch]: https://developer.roblox.com/en-us/api-reference/property/BasePart/CanTouch
 [baseparts]: https://developer.roblox.com/en-us/api-reference/class/BasePart
-[zone]: https://1foreverhd.github.io/ZonePlus/zone/
-[Zone API]: https://1foreverhd.github.io/ZonePlus/zone/
+[zone]: https://1foreverhd.github.io/ZonePlus/api/zone/
+[Zone API]: https://1foreverhd.github.io/ZonePlus/api/zone/
 [Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
 [Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
 
