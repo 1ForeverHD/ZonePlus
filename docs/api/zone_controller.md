@@ -14,7 +14,7 @@ local charRegion, regionCFrame, charSize = ZoneController.getCharacterRegion(pla
 ----
 #### getTouchingZones
 ```lua
-local touchingZonesArray = ZoneController.getTouchingZones(player)
+local touchingZonesArray, touchingPartsDictionary = ZoneController.getTouchingZones(player)
 ```
 
 ----

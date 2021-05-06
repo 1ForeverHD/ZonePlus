@@ -440,10 +440,12 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 		end
 	end
 	local zonesDict = {}
+	local touchingPartsDictionary = {}
 	for _, part in pairs(parts) do
 		local correspondingZone = partToZoneDict[part]
 		if correspondingZone then
 			zonesDict[correspondingZone] = true
+			touchingPartsDictionary[part] = correspondingZone
 		end
 	end
 	local touchingZonesArray = {}
@@ -457,7 +459,7 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 	if newExitDetection then
 		playerExitDetections[player] = newExitDetection
 	end
-	return touchingZonesArray
+	return touchingZonesArray, touchingPartsDictionary
 end
 
 function ZoneController.getHeightOfParts(tableOfParts)
