@@ -277,6 +277,8 @@ function ZoneController._deregisterConnection(registeredZone, registeredTriggerT
 			heartbeatConnections[registeredTriggerType] = nil
 			heartbeatConnection:Disconnect()
 		end
+	else
+		activeTriggers[registeredTriggerType] -= 1
 	end
 	registeredZone.activeTriggers[registeredTriggerType] = nil
 	if dictLength(registeredZone.activeTriggers) == 0 then

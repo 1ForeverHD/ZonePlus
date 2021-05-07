@@ -1,3 +1,10 @@
+## [2.1.3] - May 7 2021
+### Fixed
+- A bug that occured when disconnecting localPlayer events
+
+
+
+--------
 ## [2.1.2] - April 15 2021
 ### Fixed
 - ``playerExiting`` not firing when the player dies and respawns immidately within the zone.
