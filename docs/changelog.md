@@ -1,3 +1,10 @@
+## [2.2.1] - May 7 2021
+### Added
+- Compatibility for Deferred Events
+
+
+
+--------
 ## [2.1.3] - May 7 2021
 ### Fixed
 - A bug that occured when disconnecting localPlayer events
