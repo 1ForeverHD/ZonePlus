@@ -1,4 +1,4 @@
-## [2.2.1] - May 7 2021
+## [2.2.1] - May 21 2021
 ### Added
 - Compatibility for Deferred Events
 
