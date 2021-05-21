@@ -524,7 +524,7 @@ function Zone:_update()
 	--]]
 	
 	self:_updateTouchedConnections()
-
+	
 	self.updated:Fire()
 end
 
