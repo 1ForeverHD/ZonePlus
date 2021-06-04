@@ -107,7 +107,33 @@ local heartbeatActions = {
 -- CHARACTER HANDLER
 -- This enables character data (volume, HumanoidRootParts, etc) to be handled on
 -- an event-basis, instead of being retrieved every interval
-local function updateCharactersTotalVolume()
+local function preventMultiFrameUpdates(func)
+	-- This prevents the funtion being called twice within a single frame
+	-- If called more than once, the function will initally be delayed again until the next frame, then all others cancelled
+	local callsThisFrame = 0
+	local updatedThisFrame = false
+	local newFunc = function(...)
+		callsThisFrame += 1
+		if not updatedThisFrame then
+			local args = table.pack(...)
+			coroutine.wrap(function()
+				heartbeat:Wait()
+				updatedThisFrame = false
+				if callsThisFrame > 1 then
+					callsThisFrame = 1
+					return func(unpack(args))
+				end
+				callsThisFrame = 0
+			end)()
+			updatedThisFrame = true
+			return func(...)
+		end
+	end
+	return newFunc
+end
+
+local updateCharactersTotalVolume
+updateCharactersTotalVolume = preventMultiFrameUpdates(function()
 	charactersTotalVolume = 0
 	bodyParts = {}
 	-- We ignore these due to their insignificance (e.g. we ignore the lower and
@@ -131,13 +157,21 @@ local function updateCharactersTotalVolume()
 			for _, part in pairs(plr.Character:GetChildren()) do
 				if part:IsA("BasePart") and not bodyPartsToIgnore[part.Name] then
 					table.insert(bodyParts, part)
+					local connection
+					connection = part:GetPropertyChangedSignal("Parent"):Connect(function()
+						if part.Parent == nil then
+							connection:Disconnect()
+							updateCharactersTotalVolume()
+						end
+					end)
 				end
 			end
 		end
 	end
-end
-players.PlayerAdded:Connect(function(plr)
-	plr.CharacterAdded:Connect(function(char)
+end)
+
+local function playerAdded(player)
+	player.CharacterAdded:Connect(function(char)
 		local humanoid = char:WaitForChild("Humanoid", 3)
 		if humanoid then
 			updateCharactersTotalVolume()
@@ -150,10 +184,14 @@ players.PlayerAdded:Connect(function(plr)
 			end
 		end
 	end)
-end)
-players.PlayerRemoving:Connect(function(plr)
+end
+players.PlayerAdded:Connect(playerAdded)
+for _, player in pairs(players:GetPlayers()) do
+	playerAdded(player)
+end
+players.PlayerRemoving:Connect(function(player)
 	updateCharactersTotalVolume()
-	playerExitDetections[plr] = nil
+	playerExitDetections[player] = nil
 end)
 
 
