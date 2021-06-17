@@ -1,3 +1,10 @@
+## [2.2.3] - June 17 2021
+### Fixed
+- The incorrect disabling of Seats and VehicleSeats within Part Zones.
+
+
+
+--------
 ## [2.2.2] - June 4 2021
 ### Improved
 - The accounting of character parts when removed/added via systems like HumanoidDescriptions.

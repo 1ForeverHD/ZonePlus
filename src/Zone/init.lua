@@ -610,7 +610,11 @@ function Zone:_partTouchedZone(part)
 	local regionConstructor = self:_getRegionConstructor(part)
 	local partMaid = self._maid:give(Maid.new())
 	trackingDict[part] = partMaid
-	part.CanTouch = false
+	local instanceClassesToIgnore = {Seat = true, VehicleSeat = true}
+	local instanceNamesToIgnore = {HumanoidRootPart = true}
+	if not (instanceClassesToIgnore[part.ClassName] or not instanceNamesToIgnore[part.Name])  then
+		part.CanTouch = false
+	end
 	--
 	local partVolume = round((part.Size.X * part.Size.Y * part.Size.Z), 5)
 	self.totalPartVolume += partVolume
