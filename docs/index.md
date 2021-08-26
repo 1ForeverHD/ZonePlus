@@ -7,7 +7,7 @@
 
 ## Summary
 
-ZonePlus is a module enabling the construction of dynamic zones. These zones utilise region checking, raycasting and the new [BasePart.CanTouch] property to effectively determine players and parts within their boundaries.
+ZonePlus is a module enabling the construction of dynamic zones. These zones utilise the new Spacial Query API and [BasePart.CanTouch] property to effectively determine players and parts within their boundaries.
 
 Creating a zone is as simple as:
 
@@ -21,8 +21,8 @@ local zone = Zone.new(zoneGroup)
 Zones take one argument: a **group**. A group can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant [baseparts]. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts. 
 
 !!! info
-    Zones are compatible with all basepart classes, however it's recommended to use simple parts (blocks, balls, cylinders, wedges, etc) where possible as these are more efficient and accurate. Some classes for instance, such as MeshParts and UnionOperations, require additional raycast checks to verify their surface geometries.
-
+    Zones are compatible with all basepart classes however it's recommended to use solely Blocks (i.e. Parts with Shape 'Block') when possible as these are better optimised (since only ``WorldRoot:GetPartBoundsInBox`` needs to be called instead of ``WorldRoot:GetPartsInPart``).
+    
 These group parts are then used to define the region and precise bounds of the zone.
 
 !!! info

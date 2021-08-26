@@ -7,9 +7,9 @@ local zonesArray = ZoneController.getZones()
 ```
 
 ----
-#### getCharacterRegion
+#### getCharacterSize
 ```lua
-local charRegion, regionCFrame, charSize = ZoneController.getCharacterRegion(player)
+local charSize, charCFrame = ZoneController.getCharacterSize(player)
 ```
 
 ----
@@ -25,26 +25,13 @@ local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
 ```
 
 ----
-#### vectorIsBetweenYBounds
-```lua
-local bool = ZoneController.vectorIsBetweenYBounds(vector, tableOfParts)
-```
-
-----
-#### verifyTouchingParts
-```lua
-local bool = ZoneController.verifyTouchingParts(vectors, tableOfParts)
-```
-
-----
 --]]
 
 
 
 -- LOCAL
 local ZoneController = {}
-local Maid = require(script.Parent.Maid)
-local RotatedRegion3 = require(script.Parent.RotatedRegion3)
+local Janitor = require(script.Parent.Janitor)
 local Enum_ = require(script.Parent.Enum)
 local enum = Enum_.enums
 local players = game:GetService("Players")
@@ -58,6 +45,7 @@ local activePartToZone = {}
 local allParts = {}
 local allPartToZone = {}
 local bodyParts = {}
+local bodyPartsWhitelistParams
 local activeConnections = 0
 local runService = game:GetService("RunService")
 local heartbeat = runService.Heartbeat
@@ -65,6 +53,19 @@ local heartbeatConnections = {}
 local localPlayer = runService:IsClient() and players.LocalPlayer
 local playerExitDetections = {}
 local WHOLE_BODY_DETECTION_LIMIT = 729000 -- This is roughly the volume where Region3 checks begin to exceed 0.5% in Script Performance
+
+-- We ignore these due to their insignificance (e.g. we ignore the lower and
+-- upper torso because the HumanoidRootPart also covers these areas)
+-- This ultimately reduces the burden on the player region checks
+local bodyPartsToIgnore = {
+	UpperTorso = true,
+	LowerTorso = true,
+	Torso = true,
+	LeftHand = true,
+	RightHand = true,
+	LeftFoot = true,
+	RightFoot = true,
+}
 
 
 
@@ -99,6 +100,9 @@ local heartbeatActions = {
 			end
 		end
 		return zonesAndOccupants
+	end,
+	["item"] = function(recommendedDetection)
+		return ZoneController._getZonesAndPlayers(activeZones, activeZonesTotalVolume, true, recommendedDetection)
 	end,
 }
 
@@ -136,22 +140,10 @@ local updateCharactersTotalVolume
 updateCharactersTotalVolume = preventMultiFrameUpdates(function()
 	charactersTotalVolume = 0
 	bodyParts = {}
-	-- We ignore these due to their insignificance (e.g. we ignore the lower and
-	-- upper torso because the HumanoidRootPart also covers these areas)
-	-- This ultimately reduces the burden on the player region checks
-	local bodyPartsToIgnore = {
-		UpperTorso = true,
-		LowerTorso = true,
-		Torso = true,
-		LeftHand = true,
-		RightHand = true,
-		LeftFoot = true,
-		RightFoot = true,
-	}
 	for _, plr in pairs(players:GetPlayers()) do
-		local charRegion = ZoneController.getCharacterRegion(plr)
-		if charRegion then
-			local rSize = charRegion.Size
+		local charSize = ZoneController.getCharacterSize(plr)
+		if charSize then
+			local rSize = charSize
 			local charVolume = rSize.X*rSize.Y*rSize.Z
 			charactersTotalVolume += charVolume
 			for _, part in pairs(plr.Character:GetChildren()) do
@@ -168,6 +160,11 @@ updateCharactersTotalVolume = preventMultiFrameUpdates(function()
 			end
 		end
 	end
+
+	bodyPartsWhitelistParams = OverlapParams.new()
+	bodyPartsWhitelistParams.FilterType = Enum.RaycastFilterType.Whitelist
+	bodyPartsWhitelistParams.MaxParts = #bodyParts
+	bodyPartsWhitelistParams.FilterDescendantsInstances = bodyParts
 end)
 
 local function playerAdded(player)
@@ -199,18 +196,18 @@ end)
 -- PRIVATE FUNCTIONS
 function ZoneController._registerZone(zone)
    	registeredZones[zone] = true
-	local registeredMaid = zone._maid:give(Maid.new())
-	zone._registeredMaid = registeredMaid
-	registeredMaid:give(zone.updated:Connect(function()
+	local registeredJanitor = zone.janitor:add(Janitor.new(), "destroy")
+	zone._registeredJanitor = registeredJanitor
+	registeredJanitor:add(zone.updated:Connect(function()
 		ZoneController._updateZoneDetails()
-	end))
+	end), "Disconnect")
    ZoneController._updateZoneDetails()
 end
 
 function ZoneController._deregisterZone(zone)
 	registeredZones[zone] = nil
-	zone._registeredMaid:clean()
-	zone._registeredMaid = nil
+	zone._registeredJanitor:destroy()
+	zone._registeredJanitor = nil
 	ZoneController._updateZoneDetails()
 end
 
@@ -257,8 +254,8 @@ function ZoneController._formHeartbeat(registeredTriggerType)
 	if heartbeatConnection then return end
 	-- This will only ever connect once per triggerType per server
 	-- This means instead of initiating a loop per-zone we can handle everything within
-	-- a singular connection. This is particularly beneficial for player-orinetated
-	-- raycasting, where a raycast only needs to be cast once per interval, as apposed
+	-- a singular connection. This is particularly beneficial for player/item-orinetated
+	-- checking, where a check only needs to be cast once per interval, as apposed
 	-- to every zone per interval
 	-- I utilise heartbeat with os.clock() to provide precision (where needed) and flexibility
 	local nextCheck = 0
@@ -361,7 +358,7 @@ function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, 
 	if charactersTotalVolume < totalZoneVolume then
 		-- If the volume of all *characters* within the server is *less than* the total
 		-- volume of all active zones (i.e. zones which listen for .playerEntered)
-		-- then it's more efficient cast regions and rays within each character and
+		-- then it's more efficient cast regions within each character and
 		-- then determine the zones they belong to
 		for _, plr in pairs(players:GetPlayers()) do
 			local touchingZones = ZoneController.getTouchingZones(plr, onlyActiveZones, recommendedDetection)
@@ -373,11 +370,11 @@ function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, 
 		end
 	else
 		-- If the volume of all *active zones* within the server is *less than* the total
-		-- volume of all characters, then it's more efficient to perform the region and raycast
+		-- volume of all characters, then it's more efficient to perform the region
 		-- checks directly within each zone to determine players inside
 		for zone, _ in pairs(zonesDictToCheck) do
 			if not onlyActiveZones or zone.activeTriggers["player"] then
-				local result = workspace:FindPartsInRegion3WithWhiteList(zone.region, bodyParts, #bodyParts)
+				local result = workspace:GetPartBoundsInBox(zone.region.CFrame, zone.region.Size, bodyPartsWhitelistParams)
 				local playersDict = {}
 				for _, bodyPart in pairs(result) do
 					local parentName = bodyPart.Parent.Name
@@ -419,7 +416,7 @@ function ZoneController.getActiveZones()
 end
 --]]
 
-function ZoneController.getCharacterRegion(player)
+function ZoneController.getCharacterSize(player)
 	local char = player.Character
 	local head = char and char:FindFirstChild("Head")
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -427,29 +424,28 @@ function ZoneController.getCharacterRegion(player)
 	local headY = head.Size.Y
 	local hrpSize = hrp.Size
 	local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
-	local regionCFrame = hrp.CFrame * CFrame.new(0, headY/2 - hrpSize.Y/2, 0)
-	local charRegion = RotatedRegion3.new(regionCFrame, charSize)
-	return charRegion, regionCFrame, charSize
+	local charCFrame = hrp.CFrame * CFrame.new(0, headY/2 - hrpSize.Y/2, 0)
+	return charSize, charCFrame
 end
 
 function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDetection)
 	local exitDetection = playerExitDetections[player]
 	playerExitDetections[player] = nil
 	local finalDetection = exitDetection or recommendedDetection
-	local charRegion
+	local charSize, charCFrame
 	if finalDetection == enum.Detection.WholeBody then
-		charRegion = ZoneController.getCharacterRegion(player)
+		charSize, charCFrame = ZoneController.getCharacterSize(player)
 	else
 		local char = player.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local regionCFrame = hrp and hrp.CFrame
-		charRegion = regionCFrame and RotatedRegion3.new(regionCFrame, Vector3.new(0.1, 0.1, 0.1))
+		local hrpCFrame = hrp and hrp.CFrame
+		charSize, charCFrame = Vector3.new(0.1, 0.1, 0.1), hrpCFrame
 	end
-	if not charRegion then return {} end
+	if not charSize or not charCFrame then return {} end
 	--[[
 	local part = Instance.new("Part")
 	part.Size = charSize
-	part.CFrame = regionCFrame
+	part.CFrame = charCFrame
 	part.Anchored = true
 	part.CanCollide = false
 	part.Color = Color3.fromRGB(255, 0, 0)
@@ -459,35 +455,69 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 	--]]
 	local partsTable = (onlyActiveZones and activeParts) or allParts
 	local partToZoneDict = (onlyActiveZones and activePartToZone) or allPartToZone
-	local parts = charRegion:FindPartsInRegion3WithWhiteList(partsTable, #partsTable)
-	if #parts > 0 then
-		local hrp = player.Character.HumanoidRootPart
-		local hrpCFrame = hrp.CFrame
-		local hrpSizeX = hrp.Size.X
-		local pointsToVerify
-		if finalDetection == enum.Detection.WholeBody then
-			pointsToVerify = {
-				(hrpCFrame * CFrame.new(-hrpSizeX, 0, 0)).Position,
-				(hrpCFrame * CFrame.new(hrpSizeX, 0, 0)).Position,
-			}
-		else
-			pointsToVerify = {
-				hrp.Position,
-			}
-		end
-		if not ZoneController.verifyTouchingParts(pointsToVerify, parts) then
-			return {}
-		end
-	end
-	local zonesDict = {}
+
+	local boundParams = OverlapParams.new()
+	boundParams.FilterType = Enum.RaycastFilterType.Whitelist
+	boundParams.MaxParts = #partsTable
+	boundParams.FilterDescendantsInstances = partsTable
+
+	-- This retrieves the bounds (the rough shape) of all parts touching the character
+	-- If the corresponding zone is made up of *entirely* blocks then the bound will
+	-- be the actual shape of the part.
 	local touchingPartsDictionary = {}
-	for _, part in pairs(parts) do
-		local correspondingZone = partToZoneDict[part]
-		if correspondingZone then
+	local zonesDict = {}
+	local boundParts = workspace:GetPartBoundsInBox(charCFrame, charSize, boundParams)
+	local boundPartsThatRequirePreciseChecks = {}
+	for _, boundPart in pairs(boundParts) do
+		local correspondingZone = partToZoneDict[boundPart]
+		if correspondingZone and correspondingZone.allZonePartsAreBlocks then
 			zonesDict[correspondingZone] = true
-			touchingPartsDictionary[part] = correspondingZone
+			touchingPartsDictionary[boundPart] = correspondingZone
+		else
+			table.insert(boundPartsThatRequirePreciseChecks, boundPart)
 		end
 	end
+
+	-- If the bound parts belong to a zone that isn't entirely made up of blocks, then
+	-- we peform additional checks using GetPartsInPart which enables shape
+	-- geometries to be precisely determined for non-block baseparts.
+	local totalRemainingBoundParts = #boundPartsThatRequirePreciseChecks
+	local precisePartsCount = 0
+	if totalRemainingBoundParts > 0 then
+		
+		local preciseParams = OverlapParams.new()
+		preciseParams.FilterType = Enum.RaycastFilterType.Whitelist
+		preciseParams.MaxParts = totalRemainingBoundParts
+		preciseParams.FilterDescendantsInstances = boundPartsThatRequirePreciseChecks
+
+		local character = player.Character
+		local bodyPartsToCheck = (finalDetection == enum.Detection.WholeBody and character:GetChildren()) or {character.HumanoidRootPart}
+		for _, bodyPart in pairs(bodyPartsToCheck) do
+			local endCheck = false
+			if not bodyPart:IsA("BasePart") or bodyPartsToIgnore[bodyPart.Name] then
+				continue
+			end
+			local preciseParts = workspace:GetPartsInPart(bodyPart, preciseParams)
+			for _, precisePart in pairs(preciseParts) do
+				if not touchingPartsDictionary[precisePart] then
+					local correspondingZone = partToZoneDict[precisePart]
+					if correspondingZone then
+						zonesDict[correspondingZone] = true
+						touchingPartsDictionary[precisePart] = correspondingZone
+						precisePartsCount += 1
+					end
+					if precisePartsCount == totalRemainingBoundParts then
+						endCheck = true
+						break
+					end
+				end
+			end
+			if endCheck then
+				break
+			end
+		end
+	end
+	
 	local touchingZonesArray = {}
 	local newExitDetection
 	for zone, _ in pairs(zonesDict) do
@@ -521,47 +551,6 @@ function ZoneController.getHeightOfParts(tableOfParts)
 	return height, minY, maxY
 end
 
-function ZoneController.vectorIsBetweenYBounds(vectorToCheck, tableOfParts)
-	local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = tableOfParts
-	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
-	for i = 1, 2 do
-		local startVector = Vector3.new(vectorToCheck.X, (i == 1 and maxY) or minY, vectorToCheck.Z)
-		local directionVector = Vector3.new(0, (i == 1 and -height) or height, 0)
-		local raycastResult = workspace:Raycast(startVector, directionVector, raycastParams)
-		local vectorY = vectorToCheck.Y
-		local intersectionY = (raycastResult and raycastResult.Position.Y)
-		if not intersectionY or (i == 1 and vectorY > intersectionY) or (i == 2 and vectorY < intersectionY) then
-			return false
-		end
-	end
-	return true
-end
-
-function ZoneController.verifyTouchingParts(vectorsToCheck, tableOfParts)
-	-- Region3 checks are unreliable for some baseparts such as MeshParts and UnionOperations, therefore
-	-- we perform additional raycast checks to confirm whether the touching parts are actually within the zone
-	local classesToCheck = {
-		MeshPart = true,
-		UnionOperation = true,
-	}
-	local additionalCheckRequired = true
-	for _, part in pairs(tableOfParts) do
-		if not classesToCheck[part.ClassName] then
-			additionalCheckRequired = false
-		end
-	end
-	if not additionalCheckRequired then
-		return true
-	end
-	for _, vector in pairs(vectorsToCheck) do
-		if ZoneController.vectorIsBetweenYBounds(vector, tableOfParts) then
-			return true
-		end
-	end
-	return false
-end
 
 
 return ZoneController

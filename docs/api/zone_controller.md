@@ -24,15 +24,3 @@ local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
 ```
 
 ----
-#### vectorIsBetweenYBounds
-```lua
-local bool = ZoneController.vectorIsBetweenYBounds(vector, tableOfParts)
-```
-
-----
-#### verifyTouchingParts
-```lua
-local bool = ZoneController.verifyTouchingParts(vectors, tableOfParts)
-```
-
-----
