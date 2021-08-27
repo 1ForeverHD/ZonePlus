@@ -57,7 +57,7 @@ Discover the full set of methods, events and properties at the [Zone API].
 ----
 
 ## Optimisations
-Zones by default perform up to 10 checks per second around a *whole* players character. This behaviour can be changed by modifying the **Accuracy** and **Detection** of zones:
+Zones by default perform up to 10 checks per second in the *centre* of characters. This behaviour can be changed by modifying the **Accuracy** and **Detection** of zones:
 
 ### Accuracy
 This determines the *frequency* of checks per second.
