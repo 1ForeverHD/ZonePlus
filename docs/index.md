@@ -18,7 +18,7 @@ local zoneGroup = workspace.SafeZoneGroup
 local zone = Zone.new(zoneGroup)
 ```
 
-Zones take one argument: a **group**. A group can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant [baseparts]. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts. 
+Zones take one argument: a **zoneGroup**. A zoneGroup can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant [baseparts]. Alternatively a zoneGroup can be a singular basepart instance, or a table containing an array of baseparts. 
 
 !!! info
     Zones are compatible with all basepart classes however it's recommended to use solely Blocks (i.e. Parts with Shape 'Block') when possible as these are better optimised (since only ``WorldRoot:GetPartBoundsInBox`` needs to be called instead of ``WorldRoot:GetPartsInPart``).
@@ -87,20 +87,20 @@ The way a zone detects players and parts can be changed two ways with a correspo
 
 1. Using the ``zone:setDetection(itemName)`` method:
     ```lua
-    zone:setDetection("Automatic")
+    zone:setDetection("WholeBody")
     ```
 
 2. Setting the ``zone.enterDetection`` and ``zone.exitDetection`` properties:
     ```lua
-    zone.enterDetection = Zone.enum.Detection.Automatic
-    zone.exitDetection = Zone.enum.Detection.Automatic
+    zone.enterDetection = Zone.enum.Detection.WholeBody
+    zone.exitDetection = Zone.enum.Detection.WholeBody
     ```
 
-By default enterDetection and exitDetection are ``Automatic``.
+By default enterDetection and exitDetection are ``Centre``.
 
 !!! info
     Modifying the detection of one zone may impact the detection of another due to the modules collaborative nature.
 
 !!! warning
-    Setting ``enterDetection`` to (``Zone.enum.Detection.WholeBody`` or ``Zone.enum.Detection.Automatic``) and ``exitDetection`` to ``Zone.enum.Detection.Centre`` will cause the entered and exit events to trigger rapidly when the player lies on the bounds of the zone.
+    Setting ``enterDetection`` to (``Zone.enum.Detection.WholeBody`` or ``Zone.enum.Detection.Automatic``) and ``exitDetection`` to ``Zone.enum.Detection.Centre`` may cause the entered and exit events to trigger rapidly when the player lies on the bounds of the zone.
 

@@ -39,6 +39,17 @@ function Tracker.getCombinedTotalVolumes()
 	return combinedVolume
 end
 
+function Tracker.getCharacterSize(character)
+	local head = character and character:FindFirstChild("Head")
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	if not(hrp and head) then return nil end
+	local headY = head.Size.Y
+	local hrpSize = hrp.Size
+	local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
+	local charCFrame = hrp.CFrame * CFrame.new(0, headY/2 - hrpSize.Y/2, 0)
+	return charSize, charCFrame
+end
+
 
 
 -- CONSTRUCTOR
@@ -169,9 +180,8 @@ function Tracker:update()
 	self.items = {}
 
 	-- This tracks the bodyparts of a character
-	local ZoneController = require(script.Parent)
 	for character, _ in pairs(self.characters) do
-		local charSize = ZoneController.getCharacterSize(character)
+		local charSize = Tracker.getCharacterSize(character)
 		if not charSize then
 			continue
 		end

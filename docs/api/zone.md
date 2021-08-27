@@ -2,6 +2,8 @@
 [Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
 [setAccuracy]: https://1foreverhd.github.io/ZonePlus/api/zone/#setaccuracy
 [setDetection]: https://1foreverhd.github.io/ZonePlus/api/zone/#setdetection
+[icon:trackItem]: https://1foreverhd.github.io/ZonePlus/api/zone/#trackitem
+[ZoneController.setGroup]: https://1foreverhd.github.io/ZonePlus/api/zone/#setgroup
 
 ## Construtors
 
@@ -31,7 +33,19 @@ local isWithinZoneBool = zone:findPlayer(player)
 ----
 #### findPart
 ```lua
-local isWithinZoneBool = zone:findPart(basePart)
+local isWithinZoneBool, touchingZoneParts = zone:findPart(basePart)
+```
+
+----
+#### findItem
+```lua
+local isWithinZoneBool, touchingZoneParts = zone:findItem(basePartOrCharacter)
+```
+
+----
+#### findPoint
+```lua
+local isWithinZoneBool, touchingZoneParts = zone:findPoint(position)
 ```
 
 ----
@@ -47,18 +61,51 @@ local partsArray = zone:getParts()
 ```
 
 ----
+#### getItems
+```lua
+local itemsArray = zone:getItems()
+```
+
+----
 #### getRandomPoint
 ```lua
-local randomVector, touchingGroupPartsArray = zone:getRandomPoint()
+local randomVector, touchingZonePartsArray = zone:getRandomPoint()
 ```
 Generates random points within the zones region until one falls within its bounds. It then returns this ``Vector3`` and a ``table array`` of group parts the point falls within.
 
 ----
-#### setAccuracy
+#### trackItem
 ```lua
-zone:setAccuracy(enumIdOrName)
+zone:trackItem(characterOrBasePart)
 ```
-Sets the frequency of checks based upon the [Accuracy Enum]. Defaults to 'High'.
+This is used to detect your own custom instances within zones, such as NPCs, and is a recommended replacement for part-events/methods.
+
+An item can be any BasePart or Character/NPC (i.e. a model with a Humanoid and HumanoidRootPart). Once tracked, it can be listened for with the ``zone.itemEntered`` and ``zone.itemExited`` events.
+
+An item will be automatically untracked if destroyed or has its parent set to ``nil``.
+
+
+----
+#### untrackItem
+```lua
+zone:untrackItem(characterOrBasePart)
+```
+
+----
+#### bindToGroup
+```lua
+zone:bindToGroup(settingsGroupName)
+```
+This is used to bind the zone to a settingsGroup to enhance the default behaviour of a collection of zones. The properties of a settingsGroup can be viewed at and customised using [ZoneController.setGroup].
+
+This method is particularly useful for zones where you want to guarantee the player/item is not in two zones at once. For example, when working with ambient/music/lighting zones which perfectly border each other.
+
+
+----
+#### unbindFromGroup
+```lua
+zone:bindToGroup(settingsGroupName)
+```
 
 ----
 #### setDetection
@@ -121,7 +168,7 @@ end)
 ```
 
 !!! info
-    This event works only for unanchored parts
+    This event works only for unanchored parts and may interfere with the parts CanCollide property. It's recommended to use itemEntered instead where possible which is more optimal and overcomes these problems. 
 
 ----
 #### partExited
@@ -132,7 +179,27 @@ end)
 ```
 
 !!! info
-    This event works only for unanchored parts
+    This event works only for unanchored parts and may interfere with the parts CanCollide property. It's recommended to use itemExited instead where possible which is more optimal and overcomes these problems. 
+
+----
+#### itemEntered
+```lua
+zone.itemEntered:Connect(function(item)
+    print(("item '%s' entered the zone!"):format(item.Name))
+end)
+```
+See [icon:trackItem] for further details on items.
+
+
+----
+#### itemExited
+```lua
+zone.itemExited:Connect(function(item)
+    print(("item '%s' exited the zone!"):format(item.Name))
+end)
+```
+See [icon:trackItem] for further details on items.
+
 
 ----
 
@@ -192,10 +259,10 @@ local bool = zone.respectUpdateQueue --[default: 'true']
 When ``true``, will prevent the internal ``_update()`` from being called multiple times within a 0.1 second period.
 
 ----
-#### groupParts
+#### zoneParts
 {read-only}
 
-An array of baseparts, defined in the ``group`` constructor parameter, that form the zone.
+An array of baseparts, defined in the ``zoneGroup`` constructor parameter, that form the zone.
 
 ----
 #### region

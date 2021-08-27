@@ -1,28 +1,3 @@
---[[ zone_controller:header
-## Functions
-
-#### getZones
-```lua
-local zonesArray = ZoneController.getZones()
-```
-
-----
-#### getCharacterSize
-```lua
-local charSize, charCFrame = ZoneController.getCharacterSize(player)
-```
-
-----
-#### getTouchingZones
-```lua
-local touchingZonesArray, touchingPartsDictionary = ZoneController.getTouchingZones(player)
-```
-
-----
---]]
-
-
-
 -- CONFIG
 local WHOLE_BODY_DETECTION_LIMIT = 729000 -- This is roughly the volume where Region3 checks begin to exceed 0.5% in Script Performance
 
@@ -191,6 +166,45 @@ function ZoneController._formHeartbeat(registeredTriggerType)
 			end
 			local highestAccuracy = lowestAccuracy
 			local zonesAndOccupants = heartbeatActions[registeredTriggerType](lowestDetection)
+
+			-- If a zone belongs to a settingsGroup with 'onlyEnterOnceExitedAll = true' , and the occupant already exists in a member group, then
+			-- ignore all incoming occupants for the other zones (preventing the enteredSignal from being fired until the occupant has left
+			-- all other zones within the same settingGroup)
+			local occupantsToBlock = {}
+			local zonesToPotentiallyIgnore = {}
+			for zone, newOccupants in pairs(zonesAndOccupants) do
+				local settingsGroup = (zone.settingsGroupName and ZoneController.getGroup(zone.settingsGroupName))
+				if settingsGroup and settingsGroup.onlyEnterOnceExitedAll == true then
+					--local currentOccupants = zone.occupants[registeredTriggerType]
+					--if currentOccupants then
+						for newOccupant, _ in pairs(newOccupants) do
+							--if currentOccupants[newOccupant] then
+								local groupDetail = occupantsToBlock[zone.settingsGroupName]
+								if not groupDetail then
+									groupDetail = {}
+									occupantsToBlock[zone.settingsGroupName] = groupDetail
+								end
+								groupDetail[newOccupant] = zone
+							--end
+						end
+						zonesToPotentiallyIgnore[zone] = newOccupants
+					--end
+				end
+			end
+			for zone, newOccupants in pairs(zonesToPotentiallyIgnore) do
+				local groupDetail = occupantsToBlock[zone.settingsGroupName]
+				if groupDetail then
+					for newOccupant, _ in pairs(newOccupants) do
+						local occupantToKeepZone = groupDetail[newOccupant]
+						if occupantToKeepZone and occupantToKeepZone ~= zone then
+							newOccupants[newOccupant] = nil
+						end
+					end
+				end
+			end
+
+			-- This deduces what signals should be fired
+			local collectiveSignalsToFire = {{}, {}}
 			for zone, _ in pairs(activeZones) do
 				if zone.activeTriggers[registeredTriggerType] then
 					local zAccuracy = zone.accuracy
@@ -203,13 +217,29 @@ function ZoneController._formHeartbeat(registeredTriggerType)
 					if occupantsPresent and zAccuracy > highestAccuracy then
 						highestAccuracy = zAccuracy
 					end
-					zone:_updateOccupants(registeredTriggerType, occupantsDict)
+					local signalsToFire = zone:_updateOccupants(registeredTriggerType, occupantsDict)
+					collectiveSignalsToFire[1][zone] = signalsToFire.exited
+					collectiveSignalsToFire[2][zone] = signalsToFire.entered
 				end
 			end
-			----
+
+			-- This ensures all exited signals and called before entered signals
+			local indexToSignalType = {"Exited", "Entered"}
+			for index, zoneAndOccupants in pairs(collectiveSignalsToFire) do
+				local signalType = indexToSignalType[index]
+				local signalName = registeredTriggerType..signalType
+				for zone, occupants in pairs(zoneAndOccupants) do
+					local signal = zone[signalName]
+					if signal then
+						for _, occupant in pairs(occupants) do
+							signal:Fire(occupant)
+						end
+					end
+				end
+			end
+
 			local cooldown = enum.Accuracy.getProperty(highestAccuracy)
 			nextCheck = clockTime + cooldown
-			----
 		end
 	end)
 	heartbeatConnections[registeredTriggerType] = heartbeatConnection
@@ -248,7 +278,7 @@ function ZoneController._updateZoneDetails()
 		if isActive then
 			activeZonesTotalVolume += zone.volume
 		end
-		for _, zonePart in pairs(zone.groupParts) do
+		for _, zonePart in pairs(zone.zoneParts) do
 			if isActive then
 				table.insert(activeParts, zonePart)
 				activePartToZone[zonePart] = zone
@@ -340,17 +370,6 @@ function ZoneController.getActiveZones()
 end
 --]]
 
-function ZoneController.getCharacterSize(character)
-	local head = character and character:FindFirstChild("Head")
-	local hrp = character and character:FindFirstChild("HumanoidRootPart")
-	if not(hrp and head) then return nil end
-	local headY = head.Size.Y
-	local hrpSize = hrp.Size
-	local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
-	local charCFrame = hrp.CFrame * CFrame.new(0, headY/2 - hrpSize.Y/2, 0)
-	return charSize, charCFrame
-end
-
 function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetection, tracker)
 	local exitDetection, finalDetection
 	if tracker then
@@ -367,7 +386,7 @@ function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetec
 		itemSize, itemCFrame = item.Size, item.CFrame
 		table.insert(bodyPartsToCheck, item)
 	elseif finalDetection == enum.Detection.WholeBody then
-		itemSize, itemCFrame = ZoneController.getCharacterSize(item)
+		itemSize, itemCFrame = Tracker.getCharacterSize(item)
 		bodyPartsToCheck = item:GetChildren()
 	else
 		local hrp = item:FindFirstChild("HumanoidRootPart")
@@ -464,6 +483,35 @@ function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetec
 		tracker.exitDetections[item] = newExitDetection
 	end
 	return touchingZonesArray, touchingPartsDictionary
+end
+
+local settingsGroups = {}
+function ZoneController.setGroup(settingsGroupName, properties)
+	local group = settingsGroups[settingsGroupName]
+	if not group then
+		group = {}
+		settingsGroups[settingsGroupName] = group
+	end
+	
+
+	-- PUBLIC PROPERTIES --
+	group.onlyEnterOnceExitedAll = true
+	
+	-- PRIVATE PROPERTIES --
+	group._name = settingsGroupName
+	group._memberZones = {}
+
+
+	if typeof(properties) == "table" then
+		for k, v in pairs(properties) do
+			group[k] = v
+		end
+	end
+	return group
+end
+
+function ZoneController.getGroup(settingsGroupName)
+	return settingsGroups[settingsGroupName]
 end
 
 

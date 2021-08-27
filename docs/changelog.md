@@ -10,15 +10,17 @@
 - ``SettingsGroup.onlyEnterOnceExitedAll`` property
 - ``Zone:bindToGroup(settingsGroupName)``
 - ``Zone:unbindFromGroup(settingsGroupName)``
+- ``Zone.settingsGroupName`` property
 - ``Zone:findPoint(position)``
 - ``ZoneController.getCharacterSize(character)``
 
 ### Changed
-- Internal behaviour to use the new Spatial Query API (https://devforum.roblox.com/t/introducing-overlapparams-new-spatial-query-api/1435720) instead of the Region3 API.
+- Internal behaviour to use the new Spatial [Query API](https://devforum.roblox.com/t/introducing-overlapparams-new-spatial-query-api/1435720) instead of the Region3 API.
 - The default Detection from ``Automatic`` to ``Centre``.
 - The behaviour of Detection ``Centre`` to include the whole HumanoidRootPart instead of a singular Vector within (this was required due to the new Spatial Query API).  
 - ``Zone:findPart`` now returns array ``touchingZoneParts`` as its second value.
 - ``Maid`` to [``Janitor``](https://github.com/howmanysmall/Janitor) by howmanysmall.
+- ``Signal`` to [``GoodSignal``](https://devforum.roblox.com/t/lua-signal-class-comparison-optimal-goodsignal-class/1387063) by stravant.
 - ``ZoneController.getTouchingZones(player)`` to ``ZoneController.getTouchingZones(characterOrBasePart)``.
 
 ### Removed
@@ -27,6 +29,7 @@
 - ``ZoneController.verifyTouchingParts``
 - ``ZoneController.vectorIsBetweenYBounds``
 - ``ZoneController.getHeightOfParts``
+- ``Automatic`` Detection Enum.
 
 
 
@@ -118,6 +121,7 @@
 - Made Zone the parent module and others as descendants
 - Removed the ``additonalHeight`` constructor argument - this caused confusion and added additional complexities to support
 - ``:getRandomPoint()`` now returns ``randomVector, touchingGroupParts`` instead of ``randomCFrame, hitPart, hitIntersection``
+- ``zone.groupParts`` to ``zone.zoneParts``
 
 ### Fixed
 - Rotational and complex geometry detection

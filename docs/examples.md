@@ -28,4 +28,9 @@
 
 -------------------------------------
 
+### NPC Damager
+<video src="https://thumbs.gfycat.com/PerkyIndelibleIndochinesetiger-mobile.mp4" width="100%" controls></video>
+
+-------------------------------------
+
 All examples can be tested, viewed and edited at the [Playground](https://www.roblox.com/games/6166477769/ZonePlus-Playground).
