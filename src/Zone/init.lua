@@ -1,214 +1,3 @@
---[[ zone:header
-[Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
-[Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
-[setAccuracy]: https://1foreverhd.github.io/ZonePlus/api/zone/#setaccuracy
-[setDetection]: https://1foreverhd.github.io/ZonePlus/api/zone/#setdetection
-
-## Construtors
-
-#### new
-```lua
-local zone = Zone.new(group)
-```
-A group is used the define the boundaries of the zone. It can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant baseparts. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts. 
-
-----
-
-
-
-## Methods
-
-#### findLocalPlayer
-```lua
-local isWithinZoneBool = zone:findLocalPlayer()
-```
-
-----
-#### findPlayer
-```lua
-local isWithinZoneBool = zone:findPlayer(player)
-```
-
-----
-#### findPart
-```lua
-local isWithinZoneBool = zone:findPart(basePart)
-```
-
-----
-#### getPlayers
-```lua
-local playersArray = zone:getPlayers()
-```
-
-----
-#### getParts
-```lua
-local partsArray = zone:getParts()
-```
-
-----
-#### getRandomPoint
-```lua
-local randomVector, touchingGroupPartsArray = zone:getRandomPoint()
-```
-Generates random points within the zones region until one falls within its bounds. It then returns this ``Vector3`` and a ``table array`` of group parts the point falls within.
-
-----
-#### setAccuracy
-```lua
-zone:setAccuracy(enumIdOrName)
-```
-Sets the frequency of checks based upon the [Accuracy Enum]. Defaults to 'High'.
-
-----
-#### setDetection
-```lua
-zone:setDetection(enumIdOrName)
-```
-Sets the precision of checks based upon the [Detection Enum]. Defaults to 'Automatic'.
-
-----
-#### destroy
-```lua
-zone:destroy()
-```
-Disconnects all connections within the zone.
-
-----
-
-
-
-## Events
-#### localPlayerEntered 
-{client-only}
-```lua
-zone.localPlayerEntered:Connect(function()
-    print("you entered the zone!")
-end)
-```
-
-----
-#### localPlayerExited
-{client-only}
-```lua
-zone.localPlayerExited:Connect(function()
-    print("you exited the zone!")
-end)
-```
-
-----
-#### playerEntered
-```lua
-zone.playerEntered:Connect(function(player)
-    print(("player '%s' entered the zone!"):format(player.Name))
-end)
-```
-
-----
-#### playerExited
-```lua
-zone.playerExited:Connect(function(player)
-    print(("player '%s' exited the zone!"):format(player.Name))
-end)
-```
-
-----
-#### partEntered
-```lua
-zone.partEntered:Connect(function(part)
-    print(("part '%s' entered the zone!"):format(part.Name))
-end)
-```
-
-!!! info
-    This event works only for unanchored parts
-
-----
-#### partExited
-```lua
-zone.partExited:Connect(function(part)
-    print(("part '%s' exited the zone!"):format(part.Name))
-end)
-```
-
-!!! info
-    This event works only for unanchored parts
-
-----
-
-
-
-## Properties
-#### accuracy
-```lua
-local accuracyEnumId = zone.accuracy --[default: 'Zone.enum.Accuracy.High']
-```
-To change ``accuracy`` you can use [setAccuracy] or do:
-
-```lua
-zone.accuracy = Zone.enum.Accuracy.ITEM_NAME
-```
-
-A list of Accuracy enum items can be found at [Accuracy Enum].
-
-----
-#### enterDetection
-```lua
-local enterDetection = zone.enterDetection --[default: 'Zone.enum.Detection.Automatic']
-```
-To change both detection types use [setDetection] otherwise to set individually do:
-
-```lua
-zone.enterDetection = Zone.enum.Detection.ITEM_NAME
-```
-
-A list of Detection enum items can be found at [Detection Enum].
-
-----
-#### exitDetection
-```lua
-local exitDetection = zone.exitDetection --[default: 'Zone.enum.Detection.Automatic']
-```
-To change both detection types use [setDetection] otherwise to set individually do:
-
-```lua
-zone.exitDetection = Zone.enum.Detection.ITEM_NAME
-```
-
-A list of Detection enum items can be found at [Detection Enum].
-
-----
-#### autoUpdate
-```lua
-local bool = zone.autoUpdate --[default: 'true']
-```
-When ``true``, the zone will update when its group parts change size or position, or when a descendant group part is added or removed from the group.
-
-----
-#### respectUpdateQueue
-```lua
-local bool = zone.respectUpdateQueue --[default: 'true']
-```
-When ``true``, will prevent the internal ``_update()`` from being called multiple times within a 0.1 second period.
-
-----
-#### groupParts
-{read-only}
-
-An array of baseparts, defined in the ``group`` constructor parameter, that form the zone.
-
-----
-#### region
-{read-only}
-
-----
-#### volume
-{read-only}
---]]
-
-
-
 -- LOCAL
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
@@ -218,15 +7,20 @@ local replicatedStorage = game:GetService("ReplicatedStorage")
 local httpService = game:GetService("HttpService")
 local Enum_ = require(script.Enum)
 local enum = Enum_.enums
-local Maid = require(script.Maid)
-local RotatedRegion3 = require(script.RotatedRegion3)
+local Janitor = require(script.Janitor)
 local Signal = require(script.Signal)
 local ZonePlusReference = require(script.ZonePlusReference)
 local referenceObject = ZonePlusReference.getObject()
-local ZoneController = require(script.ZoneController)
+local zoneControllerModule = script.ZoneController
+local trackerModule = zoneControllerModule.Tracker
+local ZoneController = require(zoneControllerModule)
 local referenceLocation = (game:GetService("RunService"):IsClient() and "Client") or "Server"
 local referencePresent = referenceObject and referenceObject:FindFirstChild(referenceLocation)
-local Zone = (referencePresent and require(referenceObject.Value)) or {}
+if referencePresent then
+	return require(referenceObject.Value)
+end
+
+local Zone = {}
 Zone.__index = Zone
 if not referencePresent then
 	ZonePlusReference.addToReplicatedStorage()
@@ -255,11 +49,12 @@ function Zone.new(group)
 	--self.ignoreRecommendedMaxParts = false
 
 	-- Variable
-	local maid = Maid.new()
-	self._maid = maid
-	self._updateConnections = maid:give(Maid.new())
+	local janitor = Janitor.new()
+	self.janitor = janitor
+	self._updateConnections = janitor:add(Janitor.new(), "destroy")
 	self.group = group
-	self.groupParts = {}
+	self.zoneParts = {}
+	self.overlapParams = {}
 	self.region = nil
 	self.volume = nil
 	self.boundMin = nil
@@ -269,21 +64,34 @@ function Zone.new(group)
 	self.activeTriggers = {}
 	self.occupants = {}
 	self.trackingTouchedTriggers = {}
-	self.enterDetection = enum.Detection.Automatic
-	self.exitDetection = enum.Detection.Automatic
+	self.enterDetection = enum.Detection.Centre
+	self.exitDetection = enum.Detection.Centre
 	self._currentEnterDetection = nil -- This will update automatically internally
 	self._currentExitDetection = nil -- This will also update automatically internally
 	self.totalPartVolume = 0
+	self.allZonePartsAreBlocks = true
+	self.trackedItems = {}
+	self.settingsGroupName = nil
+
+	local checkerPart = janitor:add(Instance.new("Part"), "Destroy")
+	checkerPart.Size = Vector3.new(0.1, 0.1, 0.1)
+	checkerPart.Name = "ZonePlusCheckerPart"
+	checkerPart.Anchored = true
+	checkerPart.Transparency = 1
+	checkerPart.CanCollide = false
+	checkerPart.Parent = workspace
+	self.checkerPart = checkerPart
 
 	-- This updates _currentEnterDetection and _currentExitDetection right away to prevent nil comparisons
 	ZoneController.updateDetection(self)
 
 	-- Signals
-	self.updated = maid:give(Signal.new())
+	self.updated = janitor:add(Signal.new(), "destroy")
 	local triggerTypes = {
 		"player",
 		"part",
 		"localPlayer",
+		"item"
 	}
 	local triggerEvents = {
 		"entered",
@@ -295,7 +103,7 @@ function Zone.new(group)
 		for i, triggerEvent in pairs(triggerEvents) do
 			-- this enables us to determine when a developer connects to an event
 			-- so that we can act accoridngly (i.e. begin or end a checker loop)
-			local signal = maid:give(Signal.new(true))
+			local signal = janitor:add(Signal.new(true), "destroy")
 			local triggerEventUpper = triggerEvent:sub(1,1):upper()..triggerEvent:sub(2)
 			local signalName = triggerType..triggerEventUpper
 			self[signalName] = signal
@@ -334,9 +142,9 @@ function Zone.new(group)
 
 	-- Register/deregister zone
 	ZoneController._registerZone(self)
-	maid:give(function()
+	janitor:add(function()
 		ZoneController._deregisterZone(self)
-	end)
+	end, true)
 	
 	return self
 end
@@ -424,41 +232,62 @@ function Zone:_displayBounds()
 			part.CFrame = CFrame.new(boundCFrame)
 			part.Name = boundName
 			part.Parent = workspace
-			self._maid:give(part)
+			self.janitor:add(part, "Destroy")
 		end
 	end
 end
 
 function Zone:_update()
 	local group = self.group
-	local groupParts = {}
+	local zoneParts = {}
 	local updateQueue = 0
 	self._updateConnections:clean()
-	
+
 	local groupType = typeof(group)
 	local containers = {}
 	local INVALID_TYPE_WARNING = "A zone group must be a model, folder, basepart or table!"
 	if groupType == "table" then
 		for _, part in pairs(group) do
 			if part:IsA("BasePart") then
-				table.insert(groupParts, part)
+				table.insert(zoneParts, part)
 			end
 		end
 	elseif groupType == "Instance" then
 		if group:IsA("BasePart") then
-			table.insert(groupParts, group)
+			table.insert(zoneParts, group)
 		else
 			table.insert(containers, group)
 			for _, part in pairs(group:GetDescendants()) do
 				if part:IsA("BasePart") then
-					table.insert(groupParts, part)
+					table.insert(zoneParts, part)
 				else
 					table.insert(containers, part)
 				end
 			end
 		end
 	end
-	self.groupParts = groupParts
+	self.zoneParts = zoneParts
+	self.overlapParams = {}
+	
+	local allZonePartsAreBlocksNew = true
+	for _, zonePart in pairs(zoneParts) do
+		local success, shapeName = pcall(function() return zonePart.Shape.Name end)
+		if shapeName ~= "Block" then
+			allZonePartsAreBlocksNew = false
+		end
+	end
+	self.allZonePartsAreBlocks = allZonePartsAreBlocksNew
+	
+	local zonePartsWhitelist = OverlapParams.new()
+	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Whitelist
+	zonePartsWhitelist.MaxParts = #zoneParts
+	zonePartsWhitelist.FilterDescendantsInstances = zoneParts
+	self.overlapParams.zonePartsWhitelist = zonePartsWhitelist
+
+	local zonePartsIgnorelist = OverlapParams.new()
+	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Blacklist
+	zonePartsIgnorelist.FilterDescendantsInstances = zoneParts
+	self.overlapParams.zonePartsIgnorelist = zonePartsIgnorelist
 	
 	-- this will call update on the zone when a group parts size or position changes, and when a
 	-- child is removed or added from a container (anything which isn't a basepart)
@@ -484,24 +313,24 @@ function Zone:_update()
 		end
 	end
 	local partProperties = {"Size", "Position"}
-	for _, part in pairs(groupParts) do
+	for _, part in pairs(zoneParts) do
 		for _, prop in pairs(partProperties) do
-			self._updateConnections:give(part:GetPropertyChangedSignal(prop):Connect(update))
+			self._updateConnections:add(part:GetPropertyChangedSignal(prop):Connect(update), "Disconnect")
 		end
 	end
 	local groupEvents = {"ChildAdded", "ChildRemoved"}
 	for _, container in pairs(containers) do
 		for _, event in pairs(groupEvents) do
-			self._updateConnections:give(self.group[event]:Connect(function(child)
+			self._updateConnections:add(self.group[event]:Connect(function(child)
 				if child:IsA("BasePart") then
 					update()
 				end
-			end))
+			end), "Disconnect")
 		end
 	end
 	
-	local region, boundMin, boundMax = self:_calculateRegion(groupParts)
-	local exactRegion, _, _ = self:_calculateRegion(groupParts, true)
+	local region, boundMin, boundMax = self:_calculateRegion(zoneParts)
+	local exactRegion, _, _ = self:_calculateRegion(zoneParts, true)
 	self.region = region
 	self.exactRegion = exactRegion
 	self.boundMin = boundMin
@@ -528,71 +357,74 @@ function Zone:_update()
 	self.updated:Fire()
 end
 
-function Zone:_updateOccupants(triggerType, newOccupants)
-	local previousOccupants = self.occupants[triggerType]
+function Zone:_updateOccupants(trackerName, newOccupants)
+	local previousOccupants = self.occupants[trackerName]
 	if not previousOccupants then
 		previousOccupants = {}
-		self.occupants[triggerType] = previousOccupants
+		self.occupants[trackerName] = previousOccupants
 	end
-	local exitedSignal = self[triggerType.."Exited"]
-	local enteredSignal = self[triggerType.."Entered"]
-	if exitedSignal then
-		for occupant, prevCharacter in pairs(previousOccupants) do
-			local newCharacter = newOccupants[occupant]
-			if newCharacter == nil or newCharacter ~= prevCharacter then
-				previousOccupants[occupant] = nil
-				exitedSignal:Fire(occupant)
+	local signalsToFire = {}
+	for occupant, prevItem in pairs(previousOccupants) do
+		local newItem = newOccupants[occupant]
+		if newItem == nil or newItem ~= prevItem then
+			previousOccupants[occupant] = nil
+			if not signalsToFire.exited then
+				signalsToFire.exited = {}
 			end
+			table.insert(signalsToFire.exited, occupant)
 		end
 	end
-	if enteredSignal then
-		for occupant, _ in pairs(newOccupants) do
-			if previousOccupants[occupant] == nil then
-				previousOccupants[occupant] = occupant.Character
-				enteredSignal:Fire(occupant)
+	for occupant, _ in pairs(newOccupants) do
+		if previousOccupants[occupant] == nil then
+			local isAPlayer = occupant:IsA("Player")
+			previousOccupants[occupant] = (isAPlayer and occupant.Character) or true
+			if not signalsToFire.entered then
+				signalsToFire.entered = {}
 			end
+			table.insert(signalsToFire.entered, occupant)
 		end
-	end
+	end 
+	return signalsToFire
 end
 
 function Zone:_formTouchedConnection(triggerType)
-	local touchedMaidName = "_touchedMaid"..triggerType
-	local touchedMaid = self[touchedMaidName]
-	if touchedMaid then
-		touchedMaid:clean()
+	local touchedJanitorName = "_touchedJanitor"..triggerType
+	local touchedJanitor = self[touchedJanitorName]
+	if touchedJanitor then
+		touchedJanitor:clean()
 	else
-		touchedMaid = self._maid:give(Maid.new())
-		self[touchedMaidName] = touchedMaid
+		touchedJanitor = self.janitor:add(Janitor.new(), "destroy")
+		self[touchedJanitorName] = touchedJanitor
 	end
 	self:_updateTouchedConnection(triggerType)
 end
 
 function Zone:_updateTouchedConnection(triggerType)
-	local touchedMaidName = "_touchedMaid"..triggerType
-	local touchedMaid = self[touchedMaidName]
-	if not touchedMaid then return end
-	for _, basePart in pairs(self.groupParts) do
-		touchedMaid:give(basePart.Touched:Connect(self.touchedConnectionActions[triggerType], self))
+	local touchedJanitorName = "_touchedJanitor"..triggerType
+	local touchedJanitor = self[touchedJanitorName]
+	if not touchedJanitor then return end
+	for _, basePart in pairs(self.zoneParts) do
+		touchedJanitor:add(basePart.Touched:Connect(self.touchedConnectionActions[triggerType], self), "Disconnect")
 	end
 end
 
 function Zone:_updateTouchedConnections()
 	for triggerType, _ in pairs(self.touchedConnectionActions) do
-		local touchedMaidName = "_touchedMaid"..triggerType
-		local touchedMaid = self[touchedMaidName]
-		if touchedMaid then
-			touchedMaid:clean()
+		local touchedJanitorName = "_touchedJanitor"..triggerType
+		local touchedJanitor = self[touchedJanitorName]
+		if touchedJanitor then
+			touchedJanitor:cleanup()
 			self:_updateTouchedConnection(triggerType)
 		end
 	end
 end
 
 function Zone:_disconnectTouchedConnection(triggerType)
-	local touchedMaidName = "_touchedMaid"..triggerType
-	local touchedMaid = self[touchedMaidName]
-	if touchedMaid then
-		touchedMaid:clean()
-		self[touchedMaidName] = nil
+	local touchedJanitorName = "_touchedJanitor"..triggerType
+	local touchedJanitor = self[touchedJanitorName]
+	if touchedJanitor then
+		touchedJanitor:cleanup()
+		self[touchedJanitorName] = nil
 	end
 end
 
@@ -606,10 +438,8 @@ function Zone:_partTouchedZone(part)
 	local verifiedEntrance = false
 	local enterPosition = part.Position
 	local enterTime = os.clock()
-	local exitPosition
-	local regionConstructor = self:_getRegionConstructor(part)
-	local partMaid = self._maid:give(Maid.new())
-	trackingDict[part] = partMaid
+	local partJanitor = self.janitor:add(Janitor.new(), "destroy")
+	trackingDict[part] = partJanitor
 	local instanceClassesToIgnore = {Seat = true, VehicleSeat = true}
 	local instanceNamesToIgnore = {HumanoidRootPart = true}
 	if not (instanceClassesToIgnore[part.ClassName] or not instanceNamesToIgnore[part.Name])  then
@@ -619,14 +449,20 @@ function Zone:_partTouchedZone(part)
 	local partVolume = round((part.Size.X * part.Size.Y * part.Size.Z), 5)
 	self.totalPartVolume += partVolume
 	--
-	partMaid:give(heartbeat:Connect(function()
+	partJanitor:add(heartbeat:Connect(function()
 		local clockTime = os.clock()
 		if clockTime >= nextCheck then
 			----
 			local cooldown = enum.Accuracy.getProperty(self.accuracy)
 			nextCheck = clockTime + cooldown
 			----
-			local withinZone = self:findPart(part, regionConstructor)
+
+			-- We initially perform a singular point check as this is vastly more lightweight than a large part check
+			-- If the former returns false, perform a whole part check in case the part is on the outer bounds.
+			local withinZone = self:findPoint(part.CFrame)
+			if not withinZone then
+				withinZone = self:findPart(part)
+			end
 			if not verifiedEntrance then
 				if withinZone then
 					verifiedEntrance = true
@@ -634,7 +470,7 @@ function Zone:_partTouchedZone(part)
 				elseif (part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown then
 					-- Even after the part has exited the zone, we track it for a brief period of time based upon the criteria
 					-- in the line above to ensure the .touched behaviours are not abused
-					partMaid:clean()
+					partJanitor:cleanup()
 				end
 			elseif not withinZone then
 				verifiedEntrance = false
@@ -643,24 +479,41 @@ function Zone:_partTouchedZone(part)
 				self.partExited:Fire(part)
 			end
 		end
-	end))
-	partMaid:give(function()
+	end), "Disconnect")
+	partJanitor:add(function()
 		trackingDict[part] = nil
 		part.CanTouch = true
 		self.totalPartVolume = round((self.totalPartVolume - partVolume), 5)
-	end)
+	end, true)
 end
 
-function Zone:_getRegionConstructor(part)
-	local cSuccess, regionConstructor = pcall(function() return part.Shape.Name end)
-	if not cSuccess then
-		local validClassNames = {
-			WedgePart = "Wedge",
-			CornerWedgePart = "CornerWedge",
-		}
-		regionConstructor = validClassNames[part.ClassName] or "new"
+local partShapeActions = {
+	["Ball"] = function(part)
+		return "GetPartBoundsInRadius", {part.Position, part.Size.X}
+	end,
+	["Block"] = function(part)
+		return "GetPartBoundsInBox", {part.CFrame, part.Size}
+	end,
+	["Other"] = function(part)
+		return "GetPartsInPart", {part}
+	end,
+}
+function Zone:_getRegionConstructor(part, overlapParams)
+	local success, shapeName = pcall(function() return part.Shape.Name end)
+	local methodName, args
+	if success and self.allZonePartsAreBlocks then
+		local action = partShapeActions[shapeName]
+		if action then
+			methodName, args = action(part)
+		end
 	end
-	return regionConstructor
+	if not methodName then
+		methodName, args = partShapeActions.Other(part)
+	end
+	if overlapParams then
+		table.insert(args, overlapParams)
+	end
+	return methodName, args
 end
 
 
@@ -673,9 +526,10 @@ function Zone:findLocalPlayer()
 	return self:findPlayer(localPlayer)
 end
 
-function Zone:findPlayer(player)
+function Zone:_find(trackerName, item)
 	ZoneController.updateDetection(self)
-	local touchingZones = ZoneController.getTouchingZones(player, false, self._currentEnterDetection)
+	local tracker = ZoneController.trackers[trackerName]
+	local touchingZones = ZoneController.getTouchingZones(item, false, self._currentEnterDetection, tracker)
 	for _, zone in pairs(touchingZones) do
 		if zone == self then
 			return true
@@ -684,62 +538,63 @@ function Zone:findPlayer(player)
 	return false
 end
 
-function Zone:findPart(part, regionConstructor, enterPosition, timeInZone)
-	-- I was originally going to fire a 'tiny ray' within the part to determine whether they are touching a
-	-- group part, however it turns out you can't do this. It appears instead a ray has to *pass through*
-	-- a parts boundary for it to be detected. Then I tried raycasting from below the zone to the part,
-	-- however this caused some inaccuracies for unusual geometries. Ultimately I've settled on casting a
-	-- 'tiny region' instead which can detect group parts accurately and after running some benchmarks
-	-- turns out to be slighly more optimal than raycasting
-	--[[
-	local withinZone
-	local partY = part.Size.Y
-	local partPos = part.Position
-	local startVector = Vector3.new(partPos.X, self.boundMin.Y-0.1, partPos.Z)
-	local endVector = (part.CFrame * CFrame.new(0, partY/2, 0)).p
-	local directionVector = endVector - startVector
-	local directionalMagnitude = directionVector.Magnitude
-	if not self.bypassRaycastChecks and directionalMagnitude < self.region.Size.Y then
-		local raycastResult = workspace:Raycast(startVector, directionVector, raycastParams)
-		withinZone = raycastResult and raycastResult.Instance
-	end--]]
-	local finalRegionConstructor = regionConstructor or self:_getRegionConstructor(part)
-	local partCFrame = part.CFrame
-	--local tinyCheckRegion = Region3.new((partCFrame * CFrame.new(0.1, 0.1, 0.1)).Position, (partCFrame * CFrame.new(-0.1, -0.1, -0.1)).Position)
-	--local touchingGroupParts = workspace:FindPartsInRegion3WithWhiteList(tinyCheckRegion, self.groupParts, #self.groupParts)
-	local tinyCheckRegion = RotatedRegion3[finalRegionConstructor](part.CFrame, Vector3.new(0.1, 0.1, 0.1))
-	local touchingGroupParts = tinyCheckRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
-	if #touchingGroupParts > 0 then
-		local partSizeXHalf = part.Size.X/2
-		local pointsToVerify = {
-			(partCFrame * CFrame.new(-partSizeXHalf, 0, 0)).Position,
-			(partCFrame * CFrame.new(partSizeXHalf, 0, 0)).Position,
-		}
-		if not ZoneController.verifyTouchingParts(pointsToVerify, touchingGroupParts) then
-			return false
-		end
-		return true
+function Zone:findPlayer(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return false
 	end
-	-- Perform a 'whole body' region check to determine accurately whether the part is in the zone or not
-	local partRegion = RotatedRegion3[finalRegionConstructor](part.CFrame, part.Size)
-	touchingGroupParts = partRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
-	if #touchingGroupParts > 0 then
-		return true
+	return self:_find("player", player.Character)
+end
+
+function Zone:findItem(item)
+	return self:_find("item", item)
+end
+
+function Zone:findPart(part)
+	local methodName, args = self:_getRegionConstructor(part, self.overlapParams.zonePartsWhitelist)
+	local touchingZoneParts = workspace[methodName](workspace, unpack(args))
+	--local touchingZoneParts = workspace:GetPartsInPart(part, self.overlapParams.zonePartsWhitelist)
+	if #touchingZoneParts > 0 then
+		return true, touchingZoneParts
 	end
 	return false
 end
 
-function Zone:getPlayers()
+function Zone:findPoint(positionOrCFrame)
+	local cframe = positionOrCFrame
+	if typeof(positionOrCFrame) == "Vector3" then
+		cframe = CFrame.new(positionOrCFrame)
+	end
+	self.checkerPart.CFrame = cframe
+	local methodName, args = self:_getRegionConstructor(self.checkerPart, self.overlapParams.zonePartsWhitelist)
+	local touchingZoneParts = workspace[methodName](workspace, unpack(args))
+	--local touchingZoneParts = workspace:GetPartsInPart(self.checkerPart, self.overlapParams.zonePartsWhitelist)
+	if #touchingZoneParts > 0 then
+		return true, touchingZoneParts
+	end
+	return false
+end
+
+function Zone:_getAll(trackerName)
 	ZoneController.updateDetection(self)
-	local playersArray = {}
-	local zonesAndOccupants = ZoneController._getZonesAndPlayers({self = true}, self.volume, false, self._currentEnterDetection)
+	local itemsArray = {}
+	local zonesAndOccupants = ZoneController._getZonesAndItems(trackerName, {self = true}, self.volume, false, self._currentEnterDetection)
 	local occupantsDict = zonesAndOccupants[self]
 	if occupantsDict then
-		for plr, _ in pairs(occupantsDict) do
-			table.insert(playersArray, plr)
+		for item, _ in pairs(occupantsDict) do
+			table.insert(itemsArray, item)
 		end
 	end
-	return playersArray
+	return itemsArray
+end
+
+function Zone:getPlayers()
+	return self:_getAll("player")
+end
+
+function Zone:getItems()
+	return self:_getAll("item")
 end
 
 function Zone:getParts()
@@ -754,7 +609,7 @@ function Zone:getParts()
 		end
 		return partsArray
 	end
-	local partsInRegion = workspace:FindPartsInRegion3WithIgnoreList(self.region, self.groupParts)
+	local partsInRegion = workspace:GetPartBoundsInBox(self.region.CFrame, self.region.Size, self.overlapParams.zonePartsIgnorelist)
 	for _, part in pairs(partsInRegion) do
 		if self:findPart(part) then
 			table.insert(partsArray, part)
@@ -769,18 +624,17 @@ function Zone:getRandomPoint()
 	local cframe = region.CFrame
 	local random = Random.new()
 	local randomCFrame
-	local touchingGroupParts
+	local success, touchingZoneParts
 	local pointIsWithinZone
 	repeat
 		randomCFrame = cframe * CFrame.new(random:NextNumber(-size.X/2,size.X/2), random:NextNumber(-size.Y/2,size.Y/2), random:NextNumber(-size.Z/2,size.Z/2))
-		local randomRegion = RotatedRegion3.new(randomCFrame, Vector3.new(0.1, 0.1, 0.1))
-		touchingGroupParts = randomRegion:FindPartsInRegion3WithWhiteList(self.groupParts, #self.groupParts)
-		if #touchingGroupParts > 0 then
-			pointIsWithinZone = ZoneController.verifyTouchingParts({randomCFrame.Position}, touchingGroupParts)
+		success, touchingZoneParts = self:findPoint(randomCFrame)
+		if success then
+			pointIsWithinZone = true
 		end
 	until pointIsWithinZone
 	local randomVector = randomCFrame.Position
-	return randomVector, touchingGroupParts
+	return randomVector, touchingZoneParts
 end
 
 function Zone:setAccuracy(enumIdOrName)
@@ -816,8 +670,69 @@ function Zone:setDetection(enumIdOrName)
 	self.exitDetection = enumId
 end
 
+function Zone:trackItem(instance)
+	local isBasePart = instance:IsA("BasePart")
+	local isCharacter = false
+	if not isBasePart then
+		isCharacter = instance:FindFirstChildOfClass("Humanoid") and instance:FindFirstChild("HumanoidRootPart")
+	end
+
+	assert(isBasePart or isCharacter, "Only BaseParts or Characters/NPCs can be tracked!")
+
+	if self.trackedItems[instance] then
+		return
+	end
+
+	local itemJanitor = self.janitor:add(Janitor.new(), "destroy")
+	local itemDetail = {
+		janitor = itemJanitor,
+		item = instance,
+		isBasePart = isBasePart,
+		isCharacter = isCharacter,
+	}
+	self.trackedItems[instance] = itemDetail
+
+	itemJanitor:add(instance:GetPropertyChangedSignal("Parent"):Connect(function()
+		if instance.Parent == nil then
+			self:untrackItem(instance)
+		end
+	end), "Disconnect")
+
+	local Tracker = require(trackerModule)
+	Tracker.itemAdded:Fire(itemDetail)
+end
+
+function Zone:untrackItem(instance)
+	local itemDetail = self.trackedItems[instance]
+	if itemDetail then
+		itemDetail.janitor:destroy()
+	end
+	self.trackedItems[instance] = nil
+
+	local Tracker = require(trackerModule)
+	Tracker.itemRemoved:Fire(itemDetail)
+end
+
+function Zone:bindToGroup(settingsGroupName)
+	self:unbindFromGroup()
+	local group = ZoneController.getGroup(settingsGroupName) or ZoneController.setGroup(settingsGroupName)
+	group._memberZones[self.zoneId] = self
+	self.settingsGroupName = settingsGroupName
+end
+
+function Zone:unbindFromGroup()
+	if self.settingsGroupName then
+		local group = ZoneController.getGroup(self.settingsGroupName)
+		if group then
+			group._memberZones[self.zoneId] = nil
+		end
+		self.settingsGroupName = nil
+	end
+end
+
 function Zone:destroy()
-	self._maid:clean()
+	self:unbindFromGroup()
+	self.janitor:destroy()
 end
 Zone.Destroy = Zone.destroy
 

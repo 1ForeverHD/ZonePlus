@@ -20,7 +20,7 @@ theme:
     # Light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: blue
+      primary: purple
       accent: blue
       toggle:
         icon: material/weather-sunny
@@ -28,7 +28,7 @@ theme:
     # Dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: blue
+      primary: purple
       accent: blue
       toggle:
         icon: material/weather-night
@@ -63,7 +63,6 @@ nav:
     - Examples: examples.md
     - Installation: installation.md
     - Method: method.md
-    - Third Parties: third_parties.md
     - API:
       - Zone: api/zone.md
       - ZoneController: api/zone_controller.md

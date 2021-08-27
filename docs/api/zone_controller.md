@@ -1,14 +1,10 @@
+[zone:bindToGroup]: https://1foreverhd.github.io/ZonePlus/api/zone/#bindtogroup
+
 ## Functions
 
 #### getZones
 ```lua
 local zonesArray = ZoneController.getZones()
-```
-
-----
-#### getCharacterRegion
-```lua
-local charRegion, regionCFrame, charSize = ZoneController.getCharacterRegion(player)
 ```
 
 ----
@@ -18,21 +14,23 @@ local touchingZonesArray, touchingPartsDictionary = ZoneController.getTouchingZo
 ```
 
 ----
-#### getHeightOfParts
+#### setGroup
 ```lua
-local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
+local settingsGroup = ZoneController.setGroup(settingsGroupName, properties)
 ```
 
-----
-#### vectorIsBetweenYBounds
+``properties`` is a dictionary defining the groups settings. The default properties are:
 ```lua
-local bool = ZoneController.vectorIsBetweenYBounds(vector, tableOfParts)
+{
+	onlyEnterOnceExitedAll = true, -- When set to `true`, it prevents items (players, parts, etc) from entering multiple zones at once within that group.
+}
 ```
+A zone can be bound to a group using [zone:bindToGroup].
 
 ----
-#### verifyTouchingParts
+#### getGroup
 ```lua
-local bool = ZoneController.verifyTouchingParts(vectors, tableOfParts)
+local settingsGroup = ZoneController.getGroup(settingsGroupName)
 ```
 
 ----
