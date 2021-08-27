@@ -18,9 +18,3 @@ local touchingZonesArray = ZoneController.getTouchingZones(player)
 ```
 
 ----
-#### getHeightOfParts
-```lua
-local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
-```
-
-----

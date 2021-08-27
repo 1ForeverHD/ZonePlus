@@ -1,16 +1,17 @@
-## [3.0.0] - June 26 2021
+## [3.0.0] - August 27 2021
 ### Added
-- ``Zone:trackItem(instance)``
-- ``Zone:untrackItem(instance)``
+- ``Zone:trackItem(characterOrBasePart)``
+- ``Zone:untrackItem(characterOrBasePart)``
 - ``Zone.itemEntered`` event
 - ``Zone.itemExited`` event
+- ``Zone:findItem(characterOrBasePart)``
 - ``ZoneController.setGroup(settingsGroupName, properties)``
 - ``ZoneController.getGroup(settingsGroupName)``
 - ``SettingsGroup.onlyEnterOnceExitedAll`` property
 - ``Zone:bindToGroup(settingsGroupName)``
 - ``Zone:unbindFromGroup(settingsGroupName)``
 - ``Zone:findPoint(position)``
-- ``ZoneController.getCharacterSize(player)``
+- ``ZoneController.getCharacterSize(character)``
 
 ### Changed
 - Internal behaviour to use the new Spatial Query API (https://devforum.roblox.com/t/introducing-overlapparams-new-spatial-query-api/1435720) instead of the Region3 API.
@@ -18,12 +19,14 @@
 - The behaviour of Detection ``Centre`` to include the whole HumanoidRootPart instead of a singular Vector within (this was required due to the new Spatial Query API).  
 - ``Zone:findPart`` now returns array ``touchingZoneParts`` as its second value.
 - ``Maid`` to [``Janitor``](https://github.com/howmanysmall/Janitor) by howmanysmall.
+- ``ZoneController.getTouchingZones(player)`` to ``ZoneController.getTouchingZones(characterOrBasePart)``.
 
 ### Removed
 - RotatedRegion3
 - ``ZoneController.getCharacterRegion``
 - ``ZoneController.verifyTouchingParts``
 - ``ZoneController.vectorIsBetweenYBounds``
+- ``ZoneController.getHeightOfParts``
 
 
 

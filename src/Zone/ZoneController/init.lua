@@ -19,53 +19,44 @@ local touchingZonesArray, touchingPartsDictionary = ZoneController.getTouchingZo
 ```
 
 ----
-#### getHeightOfParts
-```lua
-local height, minY, maxY = ZoneController.getHeightOfParts(tableOfParts)
-```
-
-----
 --]]
 
 
 
+-- CONFIG
+local WHOLE_BODY_DETECTION_LIMIT = 729000 -- This is roughly the volume where Region3 checks begin to exceed 0.5% in Script Performance
+
+
+
 -- LOCAL
-local ZoneController = {}
 local Janitor = require(script.Parent.Janitor)
 local Enum_ = require(script.Parent.Enum)
+local Signal = require(script.Parent.Signal)
+local Tracker = require(script.Tracker)
 local enum = Enum_.enums
 local players = game:GetService("Players")
 local activeZones = {}
 local activeZonesTotalVolume = 0
-local charactersTotalVolume = 0
 local activeTriggers = {}
 local registeredZones = {}
 local activeParts = {}
 local activePartToZone = {}
 local allParts = {}
 local allPartToZone = {}
-local bodyParts = {}
-local bodyPartsWhitelistParams
 local activeConnections = 0
 local runService = game:GetService("RunService")
 local heartbeat = runService.Heartbeat
 local heartbeatConnections = {}
 local localPlayer = runService:IsClient() and players.LocalPlayer
-local playerExitDetections = {}
-local WHOLE_BODY_DETECTION_LIMIT = 729000 -- This is roughly the volume where Region3 checks begin to exceed 0.5% in Script Performance
 
--- We ignore these due to their insignificance (e.g. we ignore the lower and
--- upper torso because the HumanoidRootPart also covers these areas)
--- This ultimately reduces the burden on the player region checks
-local bodyPartsToIgnore = {
-	UpperTorso = true,
-	LowerTorso = true,
-	Torso = true,
-	LeftHand = true,
-	RightHand = true,
-	LeftFoot = true,
-	RightFoot = true,
-}
+
+
+-- PUBLIC
+local ZoneController = {}
+local trackers = {}
+trackers.player = Tracker.new("player")
+trackers.item = Tracker.new("item")
+ZoneController.trackers = trackers
 
 
 
@@ -84,16 +75,21 @@ local function fillOccupants(zonesAndOccupantsTable, zone, occupant)
 		occupantsDict = {}
 		zonesAndOccupantsTable[zone] = occupantsDict
 	end
-	occupantsDict[occupant] = (occupant.Character or true)
+	local prevCharacter = occupant:IsA("Player") and occupant.Character
+	occupantsDict[occupant] = (prevCharacter or true)
 end
 
 local heartbeatActions = {
 	["player"] = function(recommendedDetection)
-		return ZoneController._getZonesAndPlayers(activeZones, activeZonesTotalVolume, true, recommendedDetection)
+		return ZoneController._getZonesAndItems("player", activeZones, activeZonesTotalVolume, true, recommendedDetection)
 	end,
 	["localPlayer"] = function(recommendedDetection)
 		local zonesAndOccupants = {}
-		local touchingZones = ZoneController.getTouchingZones(localPlayer, true, recommendedDetection)
+		local character = localPlayer.Character
+		if not character then
+			return zonesAndOccupants
+		end
+		local touchingZones = ZoneController.getTouchingZones(character, true, recommendedDetection, trackers.player)
 		for _, zone in pairs(touchingZones) do
 			if zone.activeTriggers["localPlayer"] then
 				fillOccupants(zonesAndOccupants, zone, localPlayer)
@@ -102,94 +98,9 @@ local heartbeatActions = {
 		return zonesAndOccupants
 	end,
 	["item"] = function(recommendedDetection)
-		return ZoneController._getZonesAndPlayers(activeZones, activeZonesTotalVolume, true, recommendedDetection)
+		return ZoneController._getZonesAndItems("item", activeZones, activeZonesTotalVolume, true, recommendedDetection)
 	end,
 }
-
-
-
--- CHARACTER HANDLER
--- This enables character data (volume, HumanoidRootParts, etc) to be handled on
--- an event-basis, instead of being retrieved every interval
-local function preventMultiFrameUpdates(func)
-	-- This prevents the funtion being called twice within a single frame
-	-- If called more than once, the function will initally be delayed again until the next frame, then all others cancelled
-	local callsThisFrame = 0
-	local updatedThisFrame = false
-	local newFunc = function(...)
-		callsThisFrame += 1
-		if not updatedThisFrame then
-			local args = table.pack(...)
-			coroutine.wrap(function()
-				heartbeat:Wait()
-				updatedThisFrame = false
-				if callsThisFrame > 1 then
-					callsThisFrame = 1
-					return func(unpack(args))
-				end
-				callsThisFrame = 0
-			end)()
-			updatedThisFrame = true
-			return func(...)
-		end
-	end
-	return newFunc
-end
-
-local updateCharactersTotalVolume
-updateCharactersTotalVolume = preventMultiFrameUpdates(function()
-	charactersTotalVolume = 0
-	bodyParts = {}
-	for _, plr in pairs(players:GetPlayers()) do
-		local charSize = ZoneController.getCharacterSize(plr)
-		if charSize then
-			local rSize = charSize
-			local charVolume = rSize.X*rSize.Y*rSize.Z
-			charactersTotalVolume += charVolume
-			for _, part in pairs(plr.Character:GetChildren()) do
-				if part:IsA("BasePart") and not bodyPartsToIgnore[part.Name] then
-					table.insert(bodyParts, part)
-					local connection
-					connection = part:GetPropertyChangedSignal("Parent"):Connect(function()
-						if part.Parent == nil then
-							connection:Disconnect()
-							updateCharactersTotalVolume()
-						end
-					end)
-				end
-			end
-		end
-	end
-
-	bodyPartsWhitelistParams = OverlapParams.new()
-	bodyPartsWhitelistParams.FilterType = Enum.RaycastFilterType.Whitelist
-	bodyPartsWhitelistParams.MaxParts = #bodyParts
-	bodyPartsWhitelistParams.FilterDescendantsInstances = bodyParts
-end)
-
-local function playerAdded(player)
-	player.CharacterAdded:Connect(function(char)
-		local humanoid = char:WaitForChild("Humanoid", 3)
-		if humanoid then
-			updateCharactersTotalVolume()
-			for _, valueInstance in pairs(humanoid:GetChildren()) do
-				if valueInstance:IsA("NumberValue") then
-					valueInstance.Changed:Connect(function()
-						updateCharactersTotalVolume()
-					end)
-				end
-			end
-		end
-	end)
-end
-players.PlayerAdded:Connect(playerAdded)
-for _, player in pairs(players:GetPlayers()) do
-	playerAdded(player)
-end
-players.PlayerRemoving:Connect(function(player)
-	updateCharactersTotalVolume()
-	playerExitDetections[player] = nil
-end)
 
 
 
@@ -238,8 +149,9 @@ function ZoneController.updateDetection(zone)
 	}
 	for detectionType, currentDetectionName in pairs(detectionTypes) do
 		local detection = zone[detectionType]
+		local combinedTotalVolume = Tracker.getCombinedTotalVolumes()
 		if detection == enum.Detection.Automatic then
-			if charactersTotalVolume > WHOLE_BODY_DETECTION_LIMIT then
+			if combinedTotalVolume > WHOLE_BODY_DETECTION_LIMIT then
 				detection = enum.Detection.Centre
 			else
 				detection = enum.Detection.WholeBody
@@ -347,7 +259,7 @@ function ZoneController._updateZoneDetails()
 	end
 end
 
-function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, onlyActiveZones, recommendedDetection)
+function ZoneController._getZonesAndItems(trackerName, zonesDictToCheck, zoneCustomVolume, onlyActiveZones, recommendedDetection)
 	local totalZoneVolume = zoneCustomVolume
 	if not totalZoneVolume then
 		for zone, _ in pairs(zonesDictToCheck) do
@@ -355,36 +267,48 @@ function ZoneController._getZonesAndPlayers(zonesDictToCheck, zoneCustomVolume, 
 		end
 	end
 	local zonesAndOccupants = {}
-	if charactersTotalVolume < totalZoneVolume then
-		-- If the volume of all *characters* within the server is *less than* the total
+	local tracker = trackers[trackerName]
+	if tracker.totalVolume < totalZoneVolume then
+		-- If the volume of all *characters/items* within the server is *less than* the total
 		-- volume of all active zones (i.e. zones which listen for .playerEntered)
-		-- then it's more efficient cast regions within each character and
+		-- then it's more efficient cast checks within each character and
 		-- then determine the zones they belong to
-		for _, plr in pairs(players:GetPlayers()) do
-			local touchingZones = ZoneController.getTouchingZones(plr, onlyActiveZones, recommendedDetection)
+		for _, item in pairs(tracker.items) do
+			local touchingZones = ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetection, tracker)
 			for _, zone in pairs(touchingZones) do
-				if not onlyActiveZones or zone.activeTriggers["player"] then
-					fillOccupants(zonesAndOccupants, zone, plr)
+				if not onlyActiveZones or zone.activeTriggers[trackerName] then
+					local finalItem = item
+					if trackerName == "player" then
+						finalItem = players:GetPlayerFromCharacter(item)
+					end
+					if finalItem then
+						fillOccupants(zonesAndOccupants, zone, finalItem)
+					end
 				end
 			end
 		end
 	else
 		-- If the volume of all *active zones* within the server is *less than* the total
-		-- volume of all characters, then it's more efficient to perform the region
+		-- volume of all characters/items, then it's more efficient to perform the
 		-- checks directly within each zone to determine players inside
 		for zone, _ in pairs(zonesDictToCheck) do
-			if not onlyActiveZones or zone.activeTriggers["player"] then
-				local result = workspace:GetPartBoundsInBox(zone.region.CFrame, zone.region.Size, bodyPartsWhitelistParams)
-				local playersDict = {}
-				for _, bodyPart in pairs(result) do
-					local parentName = bodyPart.Parent.Name
-					if not playersDict[parentName] then
-						playersDict[parentName] = players:GetPlayerFromCharacter(bodyPart.Parent)
+			if not onlyActiveZones or zone.activeTriggers[trackerName] then
+				local result = workspace:GetPartBoundsInBox(zone.region.CFrame, zone.region.Size, tracker.whitelistParams)
+				local finalItemsDict = {}
+				for _, itemOrChild in pairs(result) do
+					local correspondingItem = tracker.partToItem[itemOrChild]
+					if not finalItemsDict[correspondingItem] then
+						finalItemsDict[correspondingItem] = true
 					end
 				end
-				for _, plr in pairs(playersDict) do
-					if plr and zone:findPlayer(plr) then
-						fillOccupants(zonesAndOccupants, zone, plr)
+				for item, _ in pairs(finalItemsDict) do
+					if trackerName == "player" then
+						local player = players:GetPlayerFromCharacter(item)
+						if zone:findPlayer(player) then
+							fillOccupants(zonesAndOccupants, zone, player)
+						end
+					elseif zone:findItem(item) then
+						fillOccupants(zonesAndOccupants, zone, item)
 					end
 				end
 			end
@@ -416,10 +340,9 @@ function ZoneController.getActiveZones()
 end
 --]]
 
-function ZoneController.getCharacterSize(player)
-	local char = player.Character
-	local head = char and char:FindFirstChild("Head")
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+function ZoneController.getCharacterSize(character)
+	local head = character and character:FindFirstChild("Head")
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	if not(hrp and head) then return nil end
 	local headY = head.Size.Y
 	local hrpSize = hrp.Size
@@ -428,24 +351,36 @@ function ZoneController.getCharacterSize(player)
 	return charSize, charCFrame
 end
 
-function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDetection)
-	local exitDetection = playerExitDetections[player]
-	playerExitDetections[player] = nil
-	local finalDetection = exitDetection or recommendedDetection
-	local charSize, charCFrame
-	if finalDetection == enum.Detection.WholeBody then
-		charSize, charCFrame = ZoneController.getCharacterSize(player)
-	else
-		local char = player.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local hrpCFrame = hrp and hrp.CFrame
-		charSize, charCFrame = Vector3.new(0.1, 0.1, 0.1), hrpCFrame
+function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetection, tracker)
+	local exitDetection, finalDetection
+	if tracker then
+		exitDetection = tracker.exitDetections[item]
+		tracker.exitDetections[item] = nil
 	end
-	if not charSize or not charCFrame then return {} end
+	finalDetection = exitDetection or recommendedDetection
+
+	local itemSize, itemCFrame
+	local itemIsBasePart = item:IsA("BasePart")
+	local itemIsCharacter = not itemIsBasePart
+	local bodyPartsToCheck = {}
+	if itemIsBasePart then
+		itemSize, itemCFrame = item.Size, item.CFrame
+		table.insert(bodyPartsToCheck, item)
+	elseif finalDetection == enum.Detection.WholeBody then
+		itemSize, itemCFrame = ZoneController.getCharacterSize(item)
+		bodyPartsToCheck = item:GetChildren()
+	else
+		local hrp = item:FindFirstChild("HumanoidRootPart")
+		local hrpCFrame = hrp and hrp.CFrame
+		itemSize, itemCFrame = hrp.Size, hrpCFrame
+		table.insert(bodyPartsToCheck, hrp)
+	end
+	if not itemSize or not itemCFrame then return {} end
+
 	--[[
 	local part = Instance.new("Part")
-	part.Size = charSize
-	part.CFrame = charCFrame
+	part.Size = itemSize
+	part.CFrame = itemCFrame
 	part.Anchored = true
 	part.CanCollide = false
 	part.Color = Color3.fromRGB(255, 0, 0)
@@ -461,12 +396,12 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 	boundParams.MaxParts = #partsTable
 	boundParams.FilterDescendantsInstances = partsTable
 
-	-- This retrieves the bounds (the rough shape) of all parts touching the character
+	-- This retrieves the bounds (the rough shape) of all parts touching the item/character
 	-- If the corresponding zone is made up of *entirely* blocks then the bound will
 	-- be the actual shape of the part.
 	local touchingPartsDictionary = {}
 	local zonesDict = {}
-	local boundParts = workspace:GetPartBoundsInBox(charCFrame, charSize, boundParams)
+	local boundParts = workspace:GetPartBoundsInBox(itemCFrame, itemSize, boundParams)
 	local boundPartsThatRequirePreciseChecks = {}
 	for _, boundPart in pairs(boundParts) do
 		local correspondingZone = partToZoneDict[boundPart]
@@ -490,11 +425,10 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 		preciseParams.MaxParts = totalRemainingBoundParts
 		preciseParams.FilterDescendantsInstances = boundPartsThatRequirePreciseChecks
 
-		local character = player.Character
-		local bodyPartsToCheck = (finalDetection == enum.Detection.WholeBody and character:GetChildren()) or {character.HumanoidRootPart}
+		local character = item
 		for _, bodyPart in pairs(bodyPartsToCheck) do
 			local endCheck = false
-			if not bodyPart:IsA("BasePart") or bodyPartsToIgnore[bodyPart.Name] then
+			if not bodyPart:IsA("BasePart") or (itemIsCharacter and Tracker.bodyPartsToIgnore[bodyPart.Name]) then
 				continue
 			end
 			local preciseParts = workspace:GetPartsInPart(bodyPart, preciseParams)
@@ -526,29 +460,10 @@ function ZoneController.getTouchingZones(player, onlyActiveZones, recommendedDet
 		end
 		table.insert(touchingZonesArray, zone)
 	end
-	if newExitDetection then
-		playerExitDetections[player] = newExitDetection
+	if newExitDetection and tracker then
+		tracker.exitDetections[item] = newExitDetection
 	end
 	return touchingZonesArray, touchingPartsDictionary
-end
-
-function ZoneController.getHeightOfParts(tableOfParts)
-	local maxY
-	local minY
-	for _, groupPart in pairs(tableOfParts) do
-		local partHeight = groupPart.Size.Y + 10
-		local partYHalf = partHeight/2
-		local partTopY = groupPart.Position.Y + partYHalf
-		local partBottomY = groupPart.Position.Y - partYHalf
-		if maxY == nil or partTopY > maxY then
-			maxY = partTopY
-		end
-		if minY == nil or partBottomY < minY then
-			minY = partBottomY
-		end
-	end
-	local height = maxY - minY
-	return height, minY, maxY
 end
 
 

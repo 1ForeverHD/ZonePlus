@@ -3,6 +3,7 @@
 [Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
 [setAccuracy]: https://1foreverhd.github.io/ZonePlus/api/zone/#setaccuracy
 [setDetection]: https://1foreverhd.github.io/ZonePlus/api/zone/#setdetection
+[trackItem]: https://1foreverhd.github.io/ZonePlus/api/zone/#trackitem
 
 ## Construtors
 
@@ -36,6 +37,12 @@ local isWithinZoneBool, touchingZoneParts = zone:findPart(basePart)
 ```
 
 ----
+#### findItem
+```lua
+local isWithinZoneBool, touchingZoneParts = zone:findItem(basePartOrCharacter)
+```
+
+----
 #### findPoint
 ```lua
 local isWithinZoneBool, touchingZoneParts = zone:findPoint(position)
@@ -54,6 +61,12 @@ local partsArray = zone:getParts()
 ```
 
 ----
+#### getItems
+```lua
+local itemsArray = zone:getItems()
+```
+
+----
 #### getRandomPoint
 ```lua
 local randomVector, touchingGroupPartsArray = zone:getRandomPoint()
@@ -61,11 +74,19 @@ local randomVector, touchingGroupPartsArray = zone:getRandomPoint()
 Generates random points within the zones region until one falls within its bounds. It then returns this ``Vector3`` and a ``table array`` of group parts the point falls within.
 
 ----
-#### setAccuracy
+#### trackItem
 ```lua
-zone:setAccuracy(enumIdOrName)
+zone:trackItem(characterOrBasePart)
 ```
-Sets the frequency of checks based upon the [Accuracy Enum]. Defaults to 'High'.
+An item is any BasePart or Character/NPC (i.e. a model with a Humanoid and HumanoidRootPart) given to the zone to be tracked. Once tracked, it can be listened for the ``zone.itemEntered`` and ``itemExited``. An item will be automatically untracked if destroyed or has its parent set to ``nil``.
+
+
+----
+#### untrackItem
+```lua
+zone:untrackItem(characterOrBasePart)
+```
+Untracks the item so that it is no longer managed and listened for.
 
 ----
 #### setDetection
@@ -128,7 +149,7 @@ end)
 ```
 
 !!! info
-    This event works only for unanchored parts
+    This event works only for unanchored parts and may interfere with the parts CanCollide property. It's recommended to use itemEntered instead where possible which is more optimal and overcomes these problems. 
 
 ----
 #### partExited
@@ -139,7 +160,27 @@ end)
 ```
 
 !!! info
-    This event works only for unanchored parts
+    This event works only for unanchored parts and may interfere with the parts CanCollide property. It's recommended to use itemExited instead where possible which is more optimal and overcomes these problems. 
+
+----
+#### itemEntered
+```lua
+zone.itemEntered:Connect(function(item)
+    print(("item '%s' entered the zone!"):format(item.Name))
+end)
+```
+See [trackItem] for further details on items and this event.
+
+
+----
+#### itemExited
+```lua
+zone.itemExited:Connect(function(item)
+    print(("item '%s' exited the zone!"):format(item.Name))
+end)
+```
+See [trackItem] for further details on items and this event.
+
 
 ----
 
@@ -228,7 +269,9 @@ local Janitor = require(script.Janitor)
 local Signal = require(script.Signal)
 local ZonePlusReference = require(script.ZonePlusReference)
 local referenceObject = ZonePlusReference.getObject()
-local ZoneController = require(script.ZoneController)
+local zoneControllerModule = script.ZoneController
+local trackerModule = zoneControllerModule.Tracker
+local ZoneController = require(zoneControllerModule)
 local referenceLocation = (game:GetService("RunService"):IsClient() and "Client") or "Server"
 local referencePresent = referenceObject and referenceObject:FindFirstChild(referenceLocation)
 local Zone = (referencePresent and require(referenceObject.Value)) or {}
@@ -275,8 +318,8 @@ function Zone.new(group)
 	self.activeTriggers = {}
 	self.occupants = {}
 	self.trackingTouchedTriggers = {}
-	self.enterDetection = enum.Detection.Automatic
-	self.exitDetection = enum.Detection.Automatic
+	self.enterDetection = enum.Detection.Centre
+	self.exitDetection = enum.Detection.Centre
 	self._currentEnterDetection = nil -- This will update automatically internally
 	self._currentExitDetection = nil -- This will also update automatically internally
 	self.totalPartVolume = 0
@@ -478,8 +521,7 @@ function Zone:_update()
 	end
 	self.groupParts = groupParts
 	self.overlapParams = {}
-	print("groupParts = ", groupParts)
-
+	
 	local allZonePartsAreBlocksNew = true
 	for _, groupPart in pairs(groupParts) do
 		local success, shapeName = pcall(function() return groupPart.Shape.Name end)
@@ -577,9 +619,9 @@ function Zone:_updateOccupants(triggerType, newOccupants)
 	local exitedSignal = self[triggerType.."Exited"]
 	local enteredSignal = self[triggerType.."Entered"]
 	if exitedSignal then
-		for occupant, prevCharacter in pairs(previousOccupants) do
-			local newCharacter = newOccupants[occupant]
-			if newCharacter == nil or newCharacter ~= prevCharacter then
+		for occupant, prevItem in pairs(previousOccupants) do
+			local newItem = newOccupants[occupant]
+			if newItem == nil or newItem ~= prevItem then
 				previousOccupants[occupant] = nil
 				exitedSignal:Fire(occupant)
 			end
@@ -588,7 +630,8 @@ function Zone:_updateOccupants(triggerType, newOccupants)
 	if enteredSignal then
 		for occupant, _ in pairs(newOccupants) do
 			if previousOccupants[occupant] == nil then
-				previousOccupants[occupant] = occupant.Character
+				local isAPlayer = occupant:IsA("Player")
+				previousOccupants[occupant] = (isAPlayer and occupant.Character) or true
 				enteredSignal:Fire(occupant)
 			end
 		end
@@ -734,15 +777,29 @@ function Zone:findLocalPlayer()
 	return self:findPlayer(localPlayer)
 end
 
-function Zone:findPlayer(player)
+function Zone:_find(trackerName, item)
 	ZoneController.updateDetection(self)
-	local touchingZones = ZoneController.getTouchingZones(player, false, self._currentEnterDetection)
+	local tracker = ZoneController.trackers[trackerName]
+	local touchingZones = ZoneController.getTouchingZones(item, false, self._currentEnterDetection, tracker)
 	for _, zone in pairs(touchingZones) do
 		if zone == self then
 			return true
 		end
 	end
 	return false
+end
+
+function Zone:findPlayer(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return false
+	end
+	return self:_find("player", player.Character)
+end
+
+function Zone:findItem(item)
+	return self:_find("item", item)
 end
 
 function Zone:findPart(part)
@@ -770,17 +827,25 @@ function Zone:findPoint(positionOrCFrame)
 	return false
 end
 
-function Zone:getPlayers()
+function Zone:_getAll(trackerName)
 	ZoneController.updateDetection(self)
-	local playersArray = {}
-	local zonesAndOccupants = ZoneController._getZonesAndPlayers({self = true}, self.volume, false, self._currentEnterDetection)
+	local itemsArray = {}
+	local zonesAndOccupants = ZoneController._getZonesAndItems(trackerName, {self = true}, self.volume, false, self._currentEnterDetection)
 	local occupantsDict = zonesAndOccupants[self]
 	if occupantsDict then
-		for plr, _ in pairs(occupantsDict) do
-			table.insert(playersArray, plr)
+		for item, _ in pairs(occupantsDict) do
+			table.insert(itemsArray, item)
 		end
 	end
-	return playersArray
+	return itemsArray
+end
+
+function Zone:getPlayers()
+	return self:_getAll("player")
+end
+
+function Zone:getItems()
+	return self:_getAll("item")
 end
 
 function Zone:getParts()
@@ -857,16 +922,35 @@ function Zone:setDetection(enumIdOrName)
 end
 
 function Zone:trackItem(instance)
+	local isBasePart = instance:IsA("BasePart")
+	local isCharacter = false
+	if not isBasePart then
+		isCharacter = instance:FindFirstChildOfClass("Humanoid") and instance:FindFirstChild("HumanoidRootPart")
+	end
+
+	assert(isBasePart or isCharacter, "Only BaseParts or Characters/NPCs can be tracked!")
+
 	if self.trackedItems[instance] then
 		return
 	end
+
 	local itemJanitor = self.janitor:add(Janitor.new(), "destroy")
 	local itemDetail = {
 		janitor = itemJanitor,
 		item = instance,
+		isBasePart = isBasePart,
+		isCharacter = isCharacter,
 	}
 	self.trackedItems[instance] = itemDetail
-	itemJanitor:add(instance:GetPropertyChangedSignal("Parent"):Connect(self.untrackItem, self, instance), "Disconnect")
+
+	itemJanitor:add(instance:GetPropertyChangedSignal("Parent"):Connect(function()
+		if instance.Parent == nil then
+			self:untrackItem(instance)
+		end
+	end), "Disconnect")
+
+	local Tracker = require(trackerModule)
+	Tracker.itemAdded:Fire(itemDetail)
 end
 
 function Zone:untrackItem(instance)
@@ -875,6 +959,9 @@ function Zone:untrackItem(instance)
 		itemDetail.janitor:destroy()
 	end
 	self.trackedItems[instance] = nil
+
+	local Tracker = require(trackerModule)
+	Tracker.itemRemoved:Fire(itemDetail)
 end
 
 function Zone:destroy()
