@@ -15,6 +15,9 @@
 - ``Zone.new(zoneGroup)`` to ``Zone.new(container)``
 - ``zone.group`` property to ``zone.container``
 
+### Fixed
+- "ZoneController hrp is nil" bug
+
 
 
 --------

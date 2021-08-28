@@ -391,9 +391,10 @@ function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetec
 		bodyPartsToCheck = item:GetChildren()
 	else
 		local hrp = item:FindFirstChild("HumanoidRootPart")
-		local hrpCFrame = hrp and hrp.CFrame
-		itemSize, itemCFrame = hrp.Size, hrpCFrame
-		table.insert(bodyPartsToCheck, hrp)
+		if hrp then
+			itemSize, itemCFrame = hrp.Size, hrp.CFrame
+			table.insert(bodyPartsToCheck, hrp)
+		end
 	end
 	if not itemSize or not itemCFrame then return {} end
 
