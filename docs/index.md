@@ -14,11 +14,11 @@ Creating a zone is as simple as:
 ``` lua
 -- Assuming we place ZonePlus in ReplicatedStorage
 local Zone = require(game:GetService("ReplicatedStorage").Zone)
-local zoneGroup = workspace.SafeZoneGroup
-local zone = Zone.new(zoneGroup)
+local container = workspace.SafeZoneContainer
+local zone = Zone.new(container)
 ```
 
-Zones take one argument: a **zoneGroup**. A zoneGroup can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant [baseparts]. Alternatively a zoneGroup can be a singular basepart instance, or a table containing an array of baseparts. 
+Zones take one argument: a **container**. A container can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant [baseparts]. Alternatively a container can be a singular basepart instance, or a table containing an array of baseparts. 
 
 !!! info
     Zones are compatible with all basepart classes however it's recommended to use solely Blocks (i.e. Parts with Shape 'Block') when possible as these are better optimised (since only ``WorldRoot:GetPartBoundsInBox`` needs to be called instead of ``WorldRoot:GetPartsInPart``).
