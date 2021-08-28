@@ -8,6 +8,7 @@ local Janitor = require(script.Parent.Janitor)
 local Enum_ = require(script.Parent.Enum)
 local Signal = require(script.Parent.Signal)
 local Tracker = require(script.Tracker)
+local CollectiveWorldModel = require(script.CollectiveWorldModel)
 local enum = Enum_.enums
 local players = game:GetService("Players")
 local activeZones = {}
@@ -323,7 +324,7 @@ function ZoneController._getZonesAndItems(trackerName, zonesDictToCheck, zoneCus
 		-- checks directly within each zone to determine players inside
 		for zone, _ in pairs(zonesDictToCheck) do
 			if not onlyActiveZones or zone.activeTriggers[trackerName] then
-				local result = workspace:GetPartBoundsInBox(zone.region.CFrame, zone.region.Size, tracker.whitelistParams)
+				local result = CollectiveWorldModel:GetPartBoundsInBox(zone.region.CFrame, zone.region.Size, tracker.whitelistParams)
 				local finalItemsDict = {}
 				for _, itemOrChild in pairs(result) do
 					local correspondingItem = tracker.partToItem[itemOrChild]
@@ -420,7 +421,7 @@ function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetec
 	-- be the actual shape of the part.
 	local touchingPartsDictionary = {}
 	local zonesDict = {}
-	local boundParts = workspace:GetPartBoundsInBox(itemCFrame, itemSize, boundParams)
+	local boundParts = CollectiveWorldModel:GetPartBoundsInBox(itemCFrame, itemSize, boundParams)
 	local boundPartsThatRequirePreciseChecks = {}
 	for _, boundPart in pairs(boundParts) do
 		local correspondingZone = partToZoneDict[boundPart]
@@ -450,7 +451,7 @@ function ZoneController.getTouchingZones(item, onlyActiveZones, recommendedDetec
 			if not bodyPart:IsA("BasePart") or (itemIsCharacter and Tracker.bodyPartsToIgnore[bodyPart.Name]) then
 				continue
 			end
-			local preciseParts = workspace:GetPartsInPart(bodyPart, preciseParams)
+			local preciseParts = CollectiveWorldModel:GetPartsInPart(bodyPart, preciseParams)
 			for _, precisePart in pairs(preciseParts) do
 				if not touchingPartsDictionary[precisePart] then
 					local correspondingZone = partToZoneDict[precisePart]

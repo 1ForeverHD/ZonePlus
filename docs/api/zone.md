@@ -9,9 +9,16 @@
 
 #### new
 ```lua
-local zone = Zone.new(group)
+local zone = Zone.new(container)
 ```
-A group is used the define the boundaries of the zone. It can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant baseparts. Alternatively a group can be a singular basepart instance, or a table containing an array of baseparts. 
+A container is used the define the boundaries of the zone. It can be any non-basepart instance (such as a Model, Folder, etc) that contain descendant baseparts. Alternatively a container can be a singular basepart instance, or a table containing an array of baseparts. 
+
+----
+#### fromRegion
+```lua
+local zone = Zone.fromRegion(cframe, size)
+```
+Constructs a zone from the given CFrame and Size. Underneath the hood, it's creating a part (or multiple parts if any size coordinage exceeds 2024), parenting this to a folder (the container), constructing a zone with this container, calling ``:relocate()`` on that zone (which parents it outside of workspace), then finally returning the zone.
 
 ----
 
@@ -113,6 +120,13 @@ zone:bindToGroup(settingsGroupName)
 zone:setDetection(enumIdOrName)
 ```
 Sets the precision of checks based upon the [Detection Enum]. Defaults to 'Automatic'.
+
+----
+#### relocate
+```lua
+zone:relocate()
+```
+Moves the zone outside of workspace into a separate WorldModel within ReplicatedStorage or ServerStorage. This action is irreversible - once called it cannot be undone.
 
 ----
 #### destroy
@@ -262,7 +276,7 @@ When ``true``, will prevent the internal ``_update()`` from being called multipl
 #### zoneParts
 {read-only}
 
-An array of baseparts, defined in the ``zoneGroup`` constructor parameter, that form the zone.
+An array of baseparts, defined in the ``container`` constructor parameter, that form the zone.
 
 ----
 #### region
@@ -270,4 +284,8 @@ An array of baseparts, defined in the ``zoneGroup`` constructor parameter, that 
 
 ----
 #### volume
+{read-only}
+
+----
+#### worldModel
 {read-only}

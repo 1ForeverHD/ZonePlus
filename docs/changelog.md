@@ -1,3 +1,23 @@
+## [3.1.0] - August 28 2021
+### Added
+- ``Zone.fromRegion(cframe, size)``
+- ``zone:relocate()`` - Non-workspace zones are finally a possibility! Simply call this and the zones container will be moved into a WorldModel outside of Workspace.
+- CollectiveWorldModel module
+- ``zone.hasRelocated`` property
+- ``zone.worldModel`` property
+- ``zone.relocationContainer`` property
+- ``CollectiveWorldModel.setupWorldModel(zone)``
+- ``CollectiveWorldModel:GetPartBoundsInBox(cframe, size, overlapParams)``
+- ``CollectiveWorldModel:GetPartBoundsInRadius(position, radius, overlapParams)``
+- ``CollectiveWorldModel:GetPartsInPart(part, overlapParams)`
+
+### Changed
+- ``Zone.new(zoneGroup)`` to ``Zone.new(container)``
+- ``zone.group`` property to ``zone.container``
+
+
+
+--------
 ## [3.0.0] - August 27 2021
 ### Added
 - ``Zone:trackItem(characterOrBasePart)``

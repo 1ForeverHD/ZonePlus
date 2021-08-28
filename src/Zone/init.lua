@@ -13,6 +13,7 @@ local ZonePlusReference = require(script.ZonePlusReference)
 local referenceObject = ZonePlusReference.getObject()
 local zoneControllerModule = script.ZoneController
 local trackerModule = zoneControllerModule.Tracker
+local collectiveWorldModelModule = zoneControllerModule.CollectiveWorldModel
 local ZoneController = require(zoneControllerModule)
 local referenceLocation = (game:GetService("RunService"):IsClient() and "Client") or "Server"
 local referencePresent = referenceObject and referenceObject:FindFirstChild(referenceLocation)
@@ -29,15 +30,15 @@ Zone.enum = enum
 
 
 
--- CONSTRUCTOR
-function Zone.new(group)
+-- CONSTRUCTORS
+function Zone.new(container)
 	local self = {}
 	setmetatable(self, Zone)
 	
-	-- Validate group
-	local INVALID_TYPE_WARNING = "A zone group must be a model, folder, basepart or table!"
-	local groupType = typeof(group)
-	if not(groupType == "table" or groupType == "Instance") then
+	-- Validate container
+	local INVALID_TYPE_WARNING = "The zone container must be a model, folder, basepart or table!"
+	local containerType = typeof(container)
+	if not(containerType == "table" or containerType == "Instance") then
 		error(INVALID_TYPE_WARNING)
 	end
 
@@ -52,7 +53,7 @@ function Zone.new(group)
 	local janitor = Janitor.new()
 	self.janitor = janitor
 	self._updateConnections = janitor:add(Janitor.new(), "destroy")
-	self.group = group
+	self.container = container
 	self.zoneParts = {}
 	self.overlapParams = {}
 	self.region = nil
@@ -72,6 +73,7 @@ function Zone.new(group)
 	self.allZonePartsAreBlocks = true
 	self.trackedItems = {}
 	self.settingsGroupName = nil
+	self.worldModel = workspace
 
 	local checkerPart = janitor:add(Instance.new("Part"), "Destroy")
 	checkerPart.Size = Vector3.new(0.1, 0.1, 0.1)
@@ -147,6 +149,35 @@ function Zone.new(group)
 	end, true)
 	
 	return self
+end
+
+function Zone.fromRegion(cframe, size)
+	local MAX_PART_SIZE = 2024
+	local container = Instance.new("Model")
+	local function createCube(cubeCFrame, cubeSize)
+		if cubeSize.X > MAX_PART_SIZE or cubeSize.Y > MAX_PART_SIZE or cubeSize.Z > MAX_PART_SIZE then
+			local quarterSize = cubeSize * 0.25
+			local halfSize = cubeSize * 0.5
+			createCube(cubeCFrame * CFrame.new(-quarterSize.X, -quarterSize.Y, -quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(-quarterSize.X, -quarterSize.Y, quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(-quarterSize.X, quarterSize.Y, -quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(-quarterSize.X, quarterSize.Y, quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(quarterSize.X, -quarterSize.Y, -quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(quarterSize.X, -quarterSize.Y, quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(quarterSize.X, quarterSize.Y, -quarterSize.Z), halfSize)
+			createCube(cubeCFrame * CFrame.new(quarterSize.X, quarterSize.Y, quarterSize.Z), halfSize)
+		else
+			local part = Instance.new("Part")
+			part.CFrame = cubeCFrame
+			part.Size = cubeSize
+			part.Anchored = true
+			part.Parent = container
+		end
+	end
+	createCube(cframe, size)
+	local zone = Zone.new(container)
+	zone:relocate()
+	return zone
 end
 
 
@@ -238,30 +269,30 @@ function Zone:_displayBounds()
 end
 
 function Zone:_update()
-	local group = self.group
+	local container = self.container
 	local zoneParts = {}
 	local updateQueue = 0
 	self._updateConnections:clean()
 
-	local groupType = typeof(group)
-	local containers = {}
-	local INVALID_TYPE_WARNING = "A zone group must be a model, folder, basepart or table!"
-	if groupType == "table" then
-		for _, part in pairs(group) do
+	local containerType = typeof(container)
+	local holders = {}
+	local INVALID_TYPE_WARNING = "The zone container must be a model, folder, basepart or table!"
+	if containerType == "table" then
+		for _, part in pairs(container) do
 			if part:IsA("BasePart") then
 				table.insert(zoneParts, part)
 			end
 		end
-	elseif groupType == "Instance" then
-		if group:IsA("BasePart") then
-			table.insert(zoneParts, group)
+	elseif containerType == "Instance" then
+		if container:IsA("BasePart") then
+			table.insert(zoneParts, container)
 		else
-			table.insert(containers, group)
-			for _, part in pairs(group:GetDescendants()) do
+			table.insert(holders, container)
+			for _, part in pairs(container:GetDescendants()) do
 				if part:IsA("BasePart") then
 					table.insert(zoneParts, part)
 				else
-					table.insert(containers, part)
+					table.insert(holders, part)
 				end
 			end
 		end
@@ -289,8 +320,8 @@ function Zone:_update()
 	zonePartsIgnorelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsIgnorelist = zonePartsIgnorelist
 	
-	-- this will call update on the zone when a group parts size or position changes, and when a
-	-- child is removed or added from a container (anything which isn't a basepart)
+	-- this will call update on the zone when the container parts size or position changes, and when a
+	-- child is removed or added from a holder (anything which isn't a basepart)
 	local function update()
 		if self.autoUpdate then
 			local executeTime = os.clock()
@@ -318,10 +349,10 @@ function Zone:_update()
 			self._updateConnections:add(part:GetPropertyChangedSignal(prop):Connect(update), "Disconnect")
 		end
 	end
-	local groupEvents = {"ChildAdded", "ChildRemoved"}
-	for _, container in pairs(containers) do
-		for _, event in pairs(groupEvents) do
-			self._updateConnections:add(self.group[event]:Connect(function(child)
+	local containerEvents = {"ChildAdded", "ChildRemoved"}
+	for _, holder in pairs(holders) do
+		for _, event in pairs(containerEvents) do
+			self._updateConnections:add(self.container[event]:Connect(function(child)
 				if child:IsA("BasePart") then
 					update()
 				end
@@ -347,7 +378,7 @@ function Zone:_update()
 	-- and maxPartsAddition. This ultimately optimises region checks as they can be generated with
 	-- minimal MaxParts (i.e. recommendedMaxParts can be used instead of math.huge every time)
 	--[[
-	local result = workspace:FindPartsInRegion3(region, nil, math.huge)
+	local result = self.worldModel:FindPartsInRegion3(region, nil, math.huge)
 	local maxPartsBaseline = #result
 	self.recommendedMaxParts = maxPartsBaseline + self.maxPartsAddition
 	--]]
@@ -553,8 +584,8 @@ end
 
 function Zone:findPart(part)
 	local methodName, args = self:_getRegionConstructor(part, self.overlapParams.zonePartsWhitelist)
-	local touchingZoneParts = workspace[methodName](workspace, unpack(args))
-	--local touchingZoneParts = workspace:GetPartsInPart(part, self.overlapParams.zonePartsWhitelist)
+	local touchingZoneParts = self.worldModel[methodName](self.worldModel, unpack(args))
+	--local touchingZoneParts = self.worldModel:GetPartsInPart(part, self.overlapParams.zonePartsWhitelist)
 	if #touchingZoneParts > 0 then
 		return true, touchingZoneParts
 	end
@@ -568,8 +599,8 @@ function Zone:findPoint(positionOrCFrame)
 	end
 	self.checkerPart.CFrame = cframe
 	local methodName, args = self:_getRegionConstructor(self.checkerPart, self.overlapParams.zonePartsWhitelist)
-	local touchingZoneParts = workspace[methodName](workspace, unpack(args))
-	--local touchingZoneParts = workspace:GetPartsInPart(self.checkerPart, self.overlapParams.zonePartsWhitelist)
+	local touchingZoneParts = self.worldModel[methodName](self.worldModel, unpack(args))
+	--local touchingZoneParts = self.worldModel:GetPartsInPart(self.checkerPart, self.overlapParams.zonePartsWhitelist)
 	if #touchingZoneParts > 0 then
 		return true, touchingZoneParts
 	end
@@ -609,7 +640,7 @@ function Zone:getParts()
 		end
 		return partsArray
 	end
-	local partsInRegion = workspace:GetPartBoundsInBox(self.region.CFrame, self.region.Size, self.overlapParams.zonePartsIgnorelist)
+	local partsInRegion = self.worldModel:GetPartBoundsInBox(self.region.CFrame, self.region.Size, self.overlapParams.zonePartsIgnorelist)
 	for _, part in pairs(partsInRegion) do
 		if self:findPart(part) then
 			table.insert(partsArray, part)
@@ -728,6 +759,27 @@ function Zone:unbindFromGroup()
 		end
 		self.settingsGroupName = nil
 	end
+end
+
+function Zone:relocate()
+	if self.hasRelocated then
+		return
+	end
+
+	local CollectiveWorldModel = require(collectiveWorldModelModule)
+	local worldModel = CollectiveWorldModel.setupWorldModel(self)
+	self.worldModel = worldModel
+	self.hasRelocated = true
+	
+	local relocationContainer = self.container
+	if typeof(relocationContainer) == "table" then
+		relocationContainer = Instance.new("Folder")
+		for _, zonePart in pairs(self.zoneParts) do
+			zonePart.Parent = relocationContainer
+		end
+	end
+	self.relocationContainer = self.janitor:add(relocationContainer, "Destroy", "RelocationContainer")
+	relocationContainer.Parent = worldModel
 end
 
 function Zone:destroy()
