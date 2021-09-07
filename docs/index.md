@@ -4,6 +4,7 @@
 [Zone API]: https://1foreverhd.github.io/ZonePlus/api/zone/
 [Accuracy Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Accuracy.lua
 [Detection Enum]: https://github.com/1ForeverHD/ZonePlus/blob/main/src/Zone/Enum/Detection.lua
+[zone:relocate()]: https://1foreverhd.github.io/ZonePlus/api/zone/#relocate
 
 ## Summary
 
@@ -44,7 +45,10 @@ end)
     On the client you may only wish to listen for the LocalPlayer (such as for an ambient system). To achieve this you would alternatively use the ``.localPlayer`` events.
 
 !!! important
-    Zone group parts must remain within the workspace for zones to fully work
+    Initially zone parts should be located within Workspace to function properly. If you wish to move zones outside of Workspace (e.g. to prevent them interacting with other parts), consider using [zone:relocate()].
+
+!!! important
+    Zone parts must belong to the 'Default' (0) collision group.
 
 If you don't intend to frequently check for items entering and exiting a zone, you can utilise zone methods:
 

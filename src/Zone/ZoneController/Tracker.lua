@@ -5,6 +5,7 @@ local players = game:GetService("Players")
 local runService = game:GetService("RunService")
 local heartbeat = runService.Heartbeat
 local Signal = require(script.Parent.Parent.Signal)
+local Janitor = require(script.Parent.Parent.Janitor)
 
 
 
@@ -43,6 +44,9 @@ function Tracker.getCharacterSize(character)
 	local head = character and character:FindFirstChild("Head")
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	if not(hrp and head) then return nil end
+	if not head:IsA("BasePart") then
+		head = hrp
+	end
 	local headY = head.Size.Y
 	local hrpSize = hrp.Size
 	local charSize = (hrpSize * Vector3.new(2, 2, 1)) + Vector3.new(0, headY, 0)
@@ -66,6 +70,7 @@ function Tracker.new(name)
 	self.characters = {}
 	self.baseParts = {}
 	self.exitDetections = {}
+	self.janitor = Janitor.new()
 
 	if name == "player" then
 		local function updatePlayerCharacters()
@@ -178,7 +183,7 @@ function Tracker:update()
 	self.parts = {}
 	self.partToItem = {}
 	self.items = {}
-
+	
 	-- This tracks the bodyparts of a character
 	for character, _ in pairs(self.characters) do
 		local charSize = Tracker.getCharacterSize(character)
@@ -188,21 +193,28 @@ function Tracker:update()
 		local rSize = charSize
 		local charVolume = rSize.X*rSize.Y*rSize.Z
 		self.totalVolume += charVolume
+		
+		local characterJanitor = self.janitor:add(Janitor.new(), "destroy", "trackCharacterParts-"..self.name)
+		local function updateTrackerOnParentChanged(instance)
+			characterJanitor:add(instance.AncestryChanged:Connect(function()
+				if not instance:IsDescendantOf(game) then
+					if instance.Parent == nil and characterJanitor ~= nil then
+						characterJanitor:destroy()
+						characterJanitor = nil
+						self:update()
+					end
+				end
+			end), "Disconnect")
+		end
+
 		for _, part in pairs(character:GetChildren()) do
 			if part:IsA("BasePart") and not Tracker.bodyPartsToIgnore[part.Name] then
 				self.partToItem[part] = character
 				table.insert(self.parts, part)
-				local connection
-				local isDisconnected = false
-				connection = part:GetPropertyChangedSignal("Parent"):Connect(function()
-					if part.Parent == nil and not isDisconnected then
-						isDisconnected = true
-						connection:Disconnect()
-						self:update()
-					end
-				end)
+				updateTrackerOnParentChanged(part)
 			end
 		end
+		updateTrackerOnParentChanged(character)
 		table.insert(self.items, character)
 	end
 
@@ -215,7 +227,7 @@ function Tracker:update()
 		table.insert(self.parts, additionalPart)
 		table.insert(self.items, additionalPart)
 	end
-
+	
 	-- This creates the whitelist so that
 	self.whitelistParams = OverlapParams.new()
 	self.whitelistParams.FilterType = Enum.RaycastFilterType.Whitelist

@@ -129,6 +129,34 @@ zone:relocate()
 Moves the zone outside of workspace into a separate WorldModel within ReplicatedStorage or ServerStorage. This action is irreversible - once called it cannot be undone.
 
 ----
+#### onItemEnter
+```lua
+zone:onItemEnter(characterOrBasePart, callbackFunction)
+```
+Tracks the item until it has entered the zone, then calls the given function. If the item is already within the zone, the given function is called right away.
+
+```lua
+local item = character:FindFirstChild("HumanoidRootPart")
+zone:onItemEnter(item, function()
+    print("The item has entered the zone!"))
+end)
+```
+
+----
+#### onItemExit
+```lua
+zone:onItemExit(characterOrBasePart, callbackFunction)
+```
+Tracks the item until it has exited the zone, then calls the given function. If the item is already outside the zone, the given function is called right away.
+
+```lua
+local item = character:FindFirstChild("HumanoidRootPart")
+    zone:onItemExit(item, function()
+    print("The item has exited the zone!"))
+end)
+```
+
+----
 #### destroy
 ```lua
 zone:destroy()

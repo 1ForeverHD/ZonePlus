@@ -33,4 +33,9 @@
 
 -------------------------------------
 
+### Sliding Doors
+<video src="https://giant.gfycat.com/PastelPastBlueshark.mp4" width="100%" controls></video>
+
+-------------------------------------
+
 All examples can be tested, viewed and edited at the [Playground](https://www.roblox.com/games/6166477769/ZonePlus-Playground).

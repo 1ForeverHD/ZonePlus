@@ -516,6 +516,19 @@ function ZoneController.getGroup(settingsGroupName)
 	return settingsGroups[settingsGroupName]
 end
 
+local workspaceContainer
+local workspaceContainerName = string.format("ZonePlus%sContainer", (runService:IsClient() and "Client") or "Server")
+function ZoneController.getWorkspaceContainer()
+	local container = workspaceContainer or workspace:FindFirstChild(workspaceContainerName)
+	if not container then
+		container = Instance.new("Folder")
+		container.Name = workspaceContainerName
+		container.Parent = workspace
+		workspaceContainer = container
+	end
+	return container
+end
+
 
 
 return ZoneController

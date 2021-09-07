@@ -74,15 +74,8 @@ function Zone.new(container)
 	self.trackedItems = {}
 	self.settingsGroupName = nil
 	self.worldModel = workspace
-
-	local checkerPart = janitor:add(Instance.new("Part"), "Destroy")
-	checkerPart.Size = Vector3.new(0.1, 0.1, 0.1)
-	checkerPart.Name = "ZonePlusCheckerPart"
-	checkerPart.Anchored = true
-	checkerPart.Transparency = 1
-	checkerPart.CanCollide = false
-	checkerPart.Parent = workspace
-	self.checkerPart = checkerPart
+	self.onItemDetails = {}
+	self.itemsToUntrack = {}
 
 	-- This updates _currentEnterDetection and _currentExitDetection right away to prevent nil comparisons
 	ZoneController.updateDetection(self)
@@ -344,10 +337,19 @@ function Zone:_update()
 		end
 	end
 	local partProperties = {"Size", "Position"}
+	local function verifyDefaultCollision(instance)
+		if instance.CollisionGroupId ~= 0 then
+			error("Zone parts must belong to the 'Default' (0) CollisionGroup! Consider using zone:relocate() if you wish to move zones outside of workspace to prevent them interacting with other parts.")
+		end
+	end
 	for _, part in pairs(zoneParts) do
 		for _, prop in pairs(partProperties) do
 			self._updateConnections:add(part:GetPropertyChangedSignal(prop):Connect(update), "Disconnect")
 		end
+		verifyDefaultCollision(part)
+		self._updateConnections:add(part:GetPropertyChangedSignal("CollisionGroupId"):Connect(function()
+			verifyDefaultCollision(part)
+		end), "Disconnect")
 	end
 	local containerEvents = {"ChildAdded", "ChildRemoved"}
 	for _, holder in pairs(holders) do
@@ -592,13 +594,36 @@ function Zone:findPart(part)
 	return false
 end
 
+function Zone:getCheckerPart()
+	local checkerPart = self.checkerPart
+	if not checkerPart then
+		checkerPart = self.janitor:add(Instance.new("Part"), "Destroy")
+		checkerPart.Size = Vector3.new(0.1, 0.1, 0.1)
+		checkerPart.Name = "ZonePlusCheckerPart"
+		checkerPart.Anchored = true
+		checkerPart.Transparency = 1
+		checkerPart.CanCollide = false
+		self.checkerPart = checkerPart
+	end
+	local checkerParent = self.worldModel
+	if checkerParent == workspace then
+		checkerParent = ZoneController.getWorkspaceContainer()
+	end
+	if checkerPart.Parent ~= checkerParent then
+		checkerPart.Parent = checkerParent
+	end
+	return checkerPart
+end
+
 function Zone:findPoint(positionOrCFrame)
 	local cframe = positionOrCFrame
 	if typeof(positionOrCFrame) == "Vector3" then
 		cframe = CFrame.new(positionOrCFrame)
 	end
-	self.checkerPart.CFrame = cframe
-	local methodName, args = self:_getRegionConstructor(self.checkerPart, self.overlapParams.zonePartsWhitelist)
+	local checkerPart = self:getCheckerPart()
+	checkerPart.CFrame = cframe
+	--checkerPart.Parent = self.worldModel
+	local methodName, args = self:_getRegionConstructor(checkerPart, self.overlapParams.zonePartsWhitelist)
 	local touchingZoneParts = self.worldModel[methodName](self.worldModel, unpack(args))
 	--local touchingZoneParts = self.worldModel:GetPartsInPart(self.checkerPart, self.overlapParams.zonePartsWhitelist)
 	if #touchingZoneParts > 0 then
@@ -713,6 +738,9 @@ function Zone:trackItem(instance)
 	if self.trackedItems[instance] then
 		return
 	end
+	if self.itemsToUntrack[instance] then
+		self.itemsToUntrack[instance] = nil
+	end
 
 	local itemJanitor = self.janitor:add(Janitor.new(), "destroy")
 	local itemDetail = {
@@ -723,8 +751,8 @@ function Zone:trackItem(instance)
 	}
 	self.trackedItems[instance] = itemDetail
 
-	itemJanitor:add(instance:GetPropertyChangedSignal("Parent"):Connect(function()
-		if instance.Parent == nil then
+	itemJanitor:add(instance.AncestryChanged:Connect(function()
+		if not instance:IsDescendantOf(game) then
 			self:untrackItem(instance)
 		end
 	end), "Disconnect")
@@ -780,6 +808,61 @@ function Zone:relocate()
 	end
 	self.relocationContainer = self.janitor:add(relocationContainer, "Destroy", "RelocationContainer")
 	relocationContainer.Parent = worldModel
+end
+
+function Zone:_onItemCallback(eventName, desiredValue, instance, callbackFunction)
+	local detail = self.onItemDetails[instance]
+	if not detail then
+		detail = {}
+		self.onItemDetails[instance] = detail
+	end
+	if #detail == 0 then
+		self.itemsToUntrack[instance] = true
+	end
+	table.insert(detail, instance)
+	self:trackItem(instance)
+
+	local function triggerCallback()
+		callbackFunction()
+		if self.itemsToUntrack[instance] then
+			self.itemsToUntrack[instance] = nil
+			self:untrackItem(instance)
+		end
+	end
+
+	local inZoneAlready = self:findItem(instance)
+	if inZoneAlready == desiredValue then
+		triggerCallback()
+	else
+		local connection
+		connection = self[eventName]:Connect(function(item)
+			if connection and item == instance then
+				connection:Disconnect()
+				connection = nil
+				triggerCallback()
+			end
+		end)
+		--[[
+		if typeof(expireAfterSeconds) == "number" then
+			task.delay(expireAfterSeconds, function()
+				if connection ~= nil then
+					print("EXPIRE!")
+					connection:Disconnect()
+					connection = nil
+					triggerCallback()
+				end
+			end)
+		end
+		--]]
+	end
+end
+
+function Zone:onItemEnter(...)
+	self:_onItemCallback("itemEntered", true, ...)
+end
+
+function Zone:onItemExit(...)
+	self:_onItemCallback("itemExited", false, ...)
 end
 
 function Zone:destroy()

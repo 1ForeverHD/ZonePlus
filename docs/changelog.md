@@ -1,3 +1,19 @@
+## [3.2.0] - September 7 2021
+### Added
+- ``Zone:onItemEnter(characterOrBasePart, callbackFunction)``
+- ``Zone:onItemExit(characterOrBasePart, callbackFunction)``
+- An error warning when a zone is constructed using parts that don't belong to the Default collision group
+- Support for non-basepart HeadParts
+
+### Changed
+- Reorganised checker parts
+
+### Fixed
+- A bug preventing the disconnection of tracked character parts which resulted in a slight memory leak whenever a player reset or changed bodyparts
+
+
+
+--------
 ## [3.1.0] - August 28 2021
 ### Added
 - ``Zone.fromRegion(cframe, size)``
@@ -149,3 +165,34 @@
 ### Fixed
 - Rotational and complex geometry detection
 - ``getRandomPoints()`` inaccuracies
+
+
+
+```
+-- This constructs a zone based upon a group of parts in Workspace and listens for when a player enters and exits this group
+local container = workspace.AModelOfPartsRepresentingTheZone
+local zone = Zone.new(container)
+
+zone.playerEntered:Connect(function(player)
+    print(("%s entered the zone!"):format(player.Name))
+end)
+
+zone.playerExited:Connect(function(player)
+    print(("%s exited the zone!"):format(player.Name))
+end)
+```
+
+```
+-- This constructs a zone based upon a region, tracks a Zombie NPC, then listens for when the item (aka the Zombie) enters and exits the zone.
+local zoneCFrame = CFrame.new()
+local zoneSize = Vector3.new(100, 100, 100)
+local zone = Zone.fromRegion(zoneCFrame, zoneSize)
+
+zone.itemEntered:Connect(function(item)
+    print(("%s entered the zone!"):format(item.Name))
+end)
+
+zone.itemExited:Connect(function(item)
+    print(("%s exited the zone!"):format(item.Name))
+end)
+```
