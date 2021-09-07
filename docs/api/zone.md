@@ -151,7 +151,7 @@ Tracks the item until it has exited the zone, then calls the given function. If 
 
 ```lua
 local item = character:FindFirstChild("HumanoidRootPart")
-    zone:onItemExit(item, function()
+zone:onItemExit(item, function()
     print("The item has exited the zone!"))
 end)
 ```
