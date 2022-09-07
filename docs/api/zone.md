@@ -107,6 +107,8 @@ This is used to bind the zone to a settingsGroup to enhance the default behaviou
 
 This method is particularly useful for zones where you want to guarantee the player/item is not in two zones at once. For example, when working with ambient/music/lighting zones which perfectly border each other.
 
+!!info For a more visual explanation of Groups, see the corresponding section of the [YouTube Video](https://youtu.be/GC5o942IunE?t=704).
+
 
 ----
 #### unbindFromGroup
