@@ -34,7 +34,7 @@ Zone.enum = enum
 function Zone.new(container)
 	local self = {}
 	setmetatable(self, Zone)
-	
+
 	-- Validate container
 	local INVALID_TYPE_WARNING = "The zone container must be a model, folder, basepart or table!"
 	local containerType = typeof(container)
@@ -140,7 +140,7 @@ function Zone.new(container)
 	janitor:add(function()
 		ZoneController._deregisterZone(self)
 	end, true)
-	
+
 	return self
 end
 
@@ -292,7 +292,7 @@ function Zone:_update()
 	end
 	self.zoneParts = zoneParts
 	self.overlapParams = {}
-	
+
 	local allZonePartsAreBlocksNew = true
 	for _, zonePart in pairs(zoneParts) do
 		local success, shapeName = pcall(function() return zonePart.Shape.Name end)
@@ -301,7 +301,7 @@ function Zone:_update()
 		end
 	end
 	self.allZonePartsAreBlocks = allZonePartsAreBlocksNew
-	
+
 	local zonePartsWhitelist = OverlapParams.new()
 	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Whitelist
 	zonePartsWhitelist.MaxParts = #zoneParts
@@ -312,7 +312,7 @@ function Zone:_update()
 	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Blacklist
 	zonePartsIgnorelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsIgnorelist = zonePartsIgnorelist
-	
+
 	-- this will call update on the zone when the container parts size or position changes, and when a
 	-- child is removed or added from a holder (anything which isn't a basepart)
 	local function update()
@@ -361,7 +361,7 @@ function Zone:_update()
 			end), "Disconnect")
 		end
 	end
-	
+
 	local region, boundMin, boundMax = self:_calculateRegion(zoneParts)
 	local exactRegion, _, _ = self:_calculateRegion(zoneParts, true)
 	self.region = region
@@ -370,7 +370,7 @@ function Zone:_update()
 	self.boundMax = boundMax
 	local rSize = region.Size
 	self.volume = rSize.X*rSize.Y*rSize.Z
-	
+
 	-- Update: I was going to use this for the old part detection until the CanTouch property was released
 	-- everything below is now irrelevant however I'll keep just in case I use again for future
 	-------------------------------------------------------------------------------------------------
@@ -384,9 +384,9 @@ function Zone:_update()
 	local maxPartsBaseline = #result
 	self.recommendedMaxParts = maxPartsBaseline + self.maxPartsAddition
 	--]]
-	
+
 	self:_updateTouchedConnections()
-	
+
 	self.updated:Fire()
 end
 
@@ -465,6 +465,7 @@ local function round(number, decimalPlaces)
 	return math.round(number * 10^decimalPlaces) * 10^-decimalPlaces
 end
 function Zone:_partTouchedZone(part)
+	print("Seeing how many times this is called")
 	local trackingDict = self.trackingTouchedTriggers["part"]
 	if trackingDict[part] then return end
 	local nextCheck = 0
@@ -492,20 +493,26 @@ function Zone:_partTouchedZone(part)
 
 			-- We initially perform a singular point check as this is vastly more lightweight than a large part check
 			-- If the former returns false, perform a whole part check in case the part is on the outer bounds.
-			local withinZone = self:findPoint(part.CFrame)
+			--Also, we perform a check to see if the part is still in this game
+			
+			local withinZone = part.Parent ~= nil and self:findPoint(part.CFrame)
 			if not withinZone then
-				withinZone = self:findPart(part)
+				warn("Not within zone based on point check.")
+				withinZone = part.Parent ~= nil and self:findPart(part)
 			end
+			print(withinZone)
 			if not verifiedEntrance then
 				if withinZone then
 					verifiedEntrance = true
 					self.partEntered:Fire(part)
-				elseif (part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown then
+				elseif part.Parent == nil or ((part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown) then
+					warn("Getting ready to clean up")
 					-- Even after the part has exited the zone, we track it for a brief period of time based upon the criteria
 					-- in the line above to ensure the .touched behaviours are not abused
 					partJanitor:cleanup()
 				end
 			elseif not withinZone then
+				warn("Part is not within the zone")
 				verifiedEntrance = false
 				enterPosition = part.Position
 				enterTime = os.clock()
@@ -798,7 +805,7 @@ function Zone:relocate()
 	local worldModel = CollectiveWorldModel.setupWorldModel(self)
 	self.worldModel = worldModel
 	self.hasRelocated = true
-	
+
 	local relocationContainer = self.container
 	if typeof(relocationContainer) == "table" then
 		relocationContainer = Instance.new("Folder")
