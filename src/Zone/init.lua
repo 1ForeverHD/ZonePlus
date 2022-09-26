@@ -465,7 +465,6 @@ local function round(number, decimalPlaces)
 	return math.round(number * 10^decimalPlaces) * 10^-decimalPlaces
 end
 function Zone:_partTouchedZone(part)
-	print("Seeing how many times this is called")
 	local trackingDict = self.trackingTouchedTriggers["part"]
 	if trackingDict[part] then return end
 	local nextCheck = 0
@@ -494,25 +493,20 @@ function Zone:_partTouchedZone(part)
 			-- We initially perform a singular point check as this is vastly more lightweight than a large part check
 			-- If the former returns false, perform a whole part check in case the part is on the outer bounds.
 			--Also, we perform a check to see if the part is still in this game
-			
 			local withinZone = part.Parent ~= nil and self:findPoint(part.CFrame)
 			if not withinZone then
-				warn("Not within zone based on point check.")
 				withinZone = part.Parent ~= nil and self:findPart(part)
 			end
-			print(withinZone)
 			if not verifiedEntrance then
 				if withinZone then
 					verifiedEntrance = true
 					self.partEntered:Fire(part)
 				elseif part.Parent == nil or ((part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown) then
-					warn("Getting ready to clean up")
 					-- Even after the part has exited the zone, we track it for a brief period of time based upon the criteria
 					-- in the line above to ensure the .touched behaviours are not abused
 					partJanitor:cleanup()
 				end
 			elseif not withinZone then
-				warn("Part is not within the zone")
 				verifiedEntrance = false
 				enterPosition = part.Position
 				enterTime = os.clock()
