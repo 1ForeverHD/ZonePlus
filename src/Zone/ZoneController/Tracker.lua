@@ -230,7 +230,7 @@ function Tracker:update()
 	
 	-- This creates the whitelist so that
 	self.whitelistParams = OverlapParams.new()
-	self.whitelistParams.FilterType = Enum.RaycastFilterType.Whitelist
+	self.whitelistParams.FilterType = Enum.RaycastFilterType.Include
 	self.whitelistParams.MaxParts = #self.parts
 	self.whitelistParams.FilterDescendantsInstances = self.parts
 end
