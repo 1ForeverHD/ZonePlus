@@ -49,6 +49,21 @@ local function runEventHandlerInFreeThread(...)
 	end
 end
 
+export type _ConnectionProperties = {
+	_connected: boolean,
+	_signal: _Signal,
+	_fn: (...any) -> (),
+	_next: _Connection | false
+}
+
+export type Connection = {
+	Disconnect: (self: Connection) -> (),
+}
+
+export type _Connection = _ConnectionProperties & {
+	Disconnect: (self: _Connection) -> (),
+}
+
 -- Connection class
 local Connection = {}
 Connection.__index = Connection
@@ -99,13 +114,42 @@ setmetatable(Connection, {
 	end
 })
 
+export type SignalProperties = {
+	totalConnections: number,
+	connectionsChanged: Signal
+}
+
+export type _SignalProperties = {
+	_handlerListHead: _Connection | false,
+	totalConnections: number,
+	connectionsChanged: Signal
+}
+
+export type Signal = SignalProperties & {
+	new: (createConnectionsChangedSignal: boolean) -> Signal,
+	-- Methods
+	Fire: (self: Signal, ...any) -> (),
+	Connect: (self: Signal, callback: (...any) -> ()) -> Connection,
+	DisconnectAll: (self: Signal) -> (),
+	Wait: (self: Signal) -> ...any,
+}
+
+export type _Signal = _SignalProperties & {
+	new: (createConnectionsChangedSignal: boolean) -> _Signal,
+	-- Methods
+	Fire: (self: _Signal, ...any) -> (),
+	Connect: (self: _Signal, callback: (...any) -> (...any)) -> Connection,
+	DisconnectAll: (self: _Signal) -> (),
+	Wait: (self: _Signal) -> ...any,
+}
+
 -- Signal class
 local Signal = {}
 Signal.__index = Signal
 
 function Signal.new(createConnectionsChangedSignal)
 	local self = setmetatable({
-		_handlerListHead = false,	
+		_handlerListHead = false,
 	}, Signal)
     if createConnectionsChangedSignal then
         self.totalConnections = 0
