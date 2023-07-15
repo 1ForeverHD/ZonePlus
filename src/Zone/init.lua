@@ -21,6 +21,50 @@ if referencePresent then
 	return require(referenceObject.Value)
 end
 
+export type Zone = {
+	-- Constructors
+	new: (container: Instance | BasePart | {BasePart}) -> Zone,
+	fromRegion: (cframe: CFrame, size: Vector3) -> Zone,
+	-- Methods
+	findLocalPlayer: (self: Zone) -> boolean,
+	findPlayer: (self: Zone, player: Player) -> boolean,
+	findPart: (self: Zone, basePart: BasePart) -> boolean,
+	findItem: (self: Zone, basePartOrCharacter: BasePart | Model) -> boolean,
+	findPoint: (self: Zone, position: Vector3) -> boolean,
+	getPlayers: (self: Zone) -> {Player},
+	getParts: (self: Zone) -> {BasePart},
+	getItems: (self: Zone) -> {BasePart | Model},
+	getRandomPoint: (self: Zone) -> (Vector3, {BasePart}),
+	trackItem: (self: Zone, characterOrBasePart: Model | BasePart) -> (),
+	untrackItem: (self: Zone, characterOrBasePart: Model | BasePart) -> (),
+	bindToGroup: (self: Zone, settingsGroupName: {onlyEnterOnceExitedAll: boolean}) -> (),
+	unbindFromGroup: (self: Zone) -> (),
+	setDetection: (self: Zone, enumIdOrName: "WholeBody" | "Centre") -> {BasePart},
+	relocate: (self: Zone) -> (),
+	onItemEnter: (self: Zone, characterOrBasePart: Model | BasePart, callbackFunction: (...any) -> ()) -> (),
+	onItemExit: (self: Zone, characterOrBasePart: Model | BasePart, callbackFunction: (...any) -> ()) -> (),
+	destroy: (self: Zone) -> (),
+	-- Events
+	localPlayerEntered: Signal.Signal,
+	localPlayerExited: Signal.Signal,
+	playerEntered: Signal.Signal,
+	playerExited: Signal.Signal,
+	partEntered: Signal.Signal,
+	partExited: Signal.Signal,
+	itemEntered: Signal.Signal,
+	itemExited: Signal.Signal,
+	-- Properties
+	accuracy: "Low" | "Medium" | "High" | "Precise",
+	enterDetection: "WholeBody" | "Centre",
+	exitDetection: "WholeBody" | "Centre",
+	autoUpdate: boolean,
+	respectUpdateQueue: boolean,
+	zoneParts: {BasePart},
+	region: Region3,
+	volume: number,
+	worldModel: Instance
+}
+
 local Zone = {}
 Zone.__index = Zone
 if not referencePresent then
@@ -31,7 +75,7 @@ Zone.enum = enum
 
 
 -- CONSTRUCTORS
-function Zone.new(container)
+function Zone.new(container): Zone
 	local self = {}
 	setmetatable(self, Zone)
 	
@@ -141,10 +185,10 @@ function Zone.new(container)
 		ZoneController._deregisterZone(self)
 	end, true)
 	
-	return self
+	return self :: Zone
 end
 
-function Zone.fromRegion(cframe, size)
+function Zone.fromRegion(cframe, size): Zone
 	local MAX_PART_SIZE = 2024
 	local container = Instance.new("Model")
 	local function createCube(cubeCFrame, cubeSize)
@@ -303,13 +347,13 @@ function Zone:_update()
 	self.allZonePartsAreBlocks = allZonePartsAreBlocksNew
 	
 	local zonePartsWhitelist = OverlapParams.new()
-	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Whitelist
+	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Include
 	zonePartsWhitelist.MaxParts = #zoneParts
 	zonePartsWhitelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsWhitelist = zonePartsWhitelist
 
 	local zonePartsIgnorelist = OverlapParams.new()
-	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Blacklist
+	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Exclude
 	zonePartsIgnorelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsIgnorelist = zonePartsIgnorelist
 	
