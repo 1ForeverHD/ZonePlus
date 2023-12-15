@@ -92,7 +92,8 @@ end
 -- Make Connection strict
 setmetatable(Connection, {
 	__index = function(tb, key)
-		error(("Attempt to get Connection::%s (not a valid member)"):format(tostring(key)), 2)
+		--that's stupid. don't do that.
+		-- error(("Attempt to get Connection::%s (not a valid member)"):format(tostring(key)), 2)
 	end,
 	__newindex = function(tb, key, value)
 		error(("Attempt to set Connection::%s (not a valid member)"):format(tostring(key)), 2)
