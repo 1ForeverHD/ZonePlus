@@ -60,7 +60,6 @@ markdown_extensions:
 nav:
   - Home:
     - Introduction: index.md
-    - Examples: examples.md
     - Installation: installation.md
     - Method: method.md
     - API:
