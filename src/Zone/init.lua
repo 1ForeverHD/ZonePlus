@@ -303,13 +303,13 @@ function Zone:_update()
 	self.allZonePartsAreBlocks = allZonePartsAreBlocksNew
 	
 	local zonePartsWhitelist = OverlapParams.new()
-	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Whitelist
+	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Include
 	zonePartsWhitelist.MaxParts = #zoneParts
 	zonePartsWhitelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsWhitelist = zonePartsWhitelist
 
 	local zonePartsIgnorelist = OverlapParams.new()
-	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Blacklist
+	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Exclude
 	zonePartsIgnorelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsIgnorelist = zonePartsIgnorelist
 	
