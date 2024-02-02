@@ -1,0 +1,31 @@
+name: Publish To Wally
+
+on:
+  push:
+    branches: #  Act on master branch commit
+    - main
+
+jobs:
+  ci:
+    name: CI and Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: rojo-rbx/setup-foreman@v1
+      with:
+        version: "^1.0.0"
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Login to Wally
+      run: |
+          mkdir ~/.wally
+          printenv WALLY_AUTH > ~/.wally/auth.toml
+      env:
+        WALLY_AUTH: ${{ secrets.WALLY_AUTH }}
+
+    - name: Publish to Wally
+      run: wally publish
