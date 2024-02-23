@@ -31,7 +31,7 @@ Zone.enum = enum
 
 
 -- CONSTRUCTORS
-function Zone.new(container)
+function Zone.new(container: {BasePart} | BasePart)
 	local self = {}
 	setmetatable(self, Zone)
 	
@@ -76,6 +76,7 @@ function Zone.new(container)
 	self.worldModel = workspace
 	self.onItemDetails = {}
 	self.itemsToUntrack = {}
+	self.destroyed = false
 
 	-- This updates _currentEnterDetection and _currentExitDetection right away to prevent nil comparisons
 	ZoneController.updateDetection(self)
@@ -141,6 +142,18 @@ function Zone.new(container)
 		ZoneController._deregisterZone(self)
 	end, true)
 	
+	janitor:Add(function()
+		self.destroyed = true
+	end,true)
+
+	for _, v: Instance in pairs(if (typeof(container) == "Instance") then {container} else container) do
+		v.Destroying:Once(function()
+			if not self.destroyed then
+				self:Destroy()
+			end
+		end)
+	end
+
 	return self
 end
 
