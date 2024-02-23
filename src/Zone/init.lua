@@ -789,8 +789,24 @@ function Zone:unbindFromGroup()
 	end
 end
 
-function Zone:relocate()
+function Zone:relocate(newParent: Instance?)
 	if self.hasRelocated then
+		return
+	end
+
+	if newParent then
+		self.worldModel = newParent
+		self.hasRelocated = true
+
+		local relocationContainer = self.container
+		if typeof(relocationContainer) == "table" then
+			relocationContainer = Instance.new("Folder")
+			for _, zonePart in pairs(self.zoneParts) do
+				zonePart.Parent = relocationContainer
+			end
+			relocationContainer.Parent = newParent
+		end
+
 		return
 	end
 
@@ -798,7 +814,7 @@ function Zone:relocate()
 	local worldModel = CollectiveWorldModel.setupWorldModel(self)
 	self.worldModel = worldModel
 	self.hasRelocated = true
-	
+
 	local relocationContainer = self.container
 	if typeof(relocationContainer) == "table" then
 		relocationContainer = Instance.new("Folder")
