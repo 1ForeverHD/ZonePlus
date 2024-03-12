@@ -1,14 +1,6 @@
 {
   "name": "ZonePlus",
   "tree": {
-    "$className": "DataModel",
-
-    "ReplicatedStorage": {
-      "$className": "ReplicatedStorage",
-
-      "Zone": {
-        "$path": "src/Zone"
-      }
-    }
+    "$path": "src"
   }
 }
