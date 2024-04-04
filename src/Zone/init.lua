@@ -635,7 +635,7 @@ end
 function Zone:_getAll(trackerName)
 	ZoneController.updateDetection(self)
 	local itemsArray = {}
-	local zonesAndOccupants = ZoneController._getZonesAndItems(trackerName, {self = true}, self.volume, false, self._currentEnterDetection)
+	local zonesAndOccupants = ZoneController._getZonesAndItems(trackerName, {[self] = true}, self.volume, false, self._currentEnterDetection)
 	local occupantsDict = zonesAndOccupants[self]
 	if occupantsDict then
 		for item, _ in pairs(occupantsDict) do
