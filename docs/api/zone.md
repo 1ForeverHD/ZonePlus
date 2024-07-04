@@ -111,7 +111,7 @@ This method is particularly useful for zones where you want to guarantee the pla
 ----
 #### unbindFromGroup
 ```lua
-zone:bindToGroup(settingsGroupName)
+zone:unbindFromGroup(settingsGroupName)
 ```
 
 ----
