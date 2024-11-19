@@ -10,7 +10,7 @@ local zonesArray = ZoneController.getZones()
 ----
 #### getTouchingZones
 ```lua
-local touchingZonesArray, touchingPartsDictionary = ZoneController.getTouchingZones(player)
+local touchingZonesArray, touchingPartsDictionary = ZoneController.getTouchingZones(BasePart)
 ```
 
 ----
