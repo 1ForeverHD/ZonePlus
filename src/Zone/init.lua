@@ -28,17 +28,15 @@ if not referencePresent then
 end
 Zone.enum = enum
 
-
-
 -- CONSTRUCTORS
 function Zone.new(container)
 	local self = {}
 	setmetatable(self, Zone)
-	
+
 	-- Validate container
 	local INVALID_TYPE_WARNING = "The zone container must be a model, folder, basepart or table!"
 	local containerType = typeof(container)
-	if not(containerType == "table" or containerType == "Instance") then
+	if not (containerType == "table" or containerType == "Instance") then
 		error(INVALID_TYPE_WARNING)
 	end
 
@@ -46,6 +44,7 @@ function Zone.new(container)
 	self.accuracy = enum.Accuracy.High
 	self.autoUpdate = true
 	self.respectUpdateQueue = true
+	self.zoneShape = enum.ZoneShape.Auto -- Determines optimal spatial query method
 	--self.maxPartsAddition = 20
 	--self.ignoreRecommendedMaxParts = false
 
@@ -56,7 +55,8 @@ function Zone.new(container)
 	self.container = container
 	self.zoneParts = {}
 	self.overlapParams = {}
-	self.region = nil
+	self.regionCFrame = nil
+	self.regionSize = nil
 	self.volume = nil
 	self.boundMin = nil
 	self.boundMax = nil
@@ -86,7 +86,7 @@ function Zone.new(container)
 		"player",
 		"part",
 		"localPlayer",
-		"item"
+		"item",
 	}
 	local triggerEvents = {
 		"entered",
@@ -99,8 +99,8 @@ function Zone.new(container)
 			-- this enables us to determine when a developer connects to an event
 			-- so that we can act accoridngly (i.e. begin or end a checker loop)
 			local signal = janitor:add(Signal.new(true), "destroy")
-			local triggerEventUpper = triggerEvent:sub(1,1):upper()..triggerEvent:sub(2)
-			local signalName = triggerType..triggerEventUpper
+			local triggerEventUpper = triggerEvent:sub(1, 1):upper() .. triggerEvent:sub(2)
+			local signalName = triggerType .. triggerEventUpper
 			self[signalName] = signal
 			signal.connectionsChanged:Connect(function(increment)
 				if triggerType == "localPlayer" and not localPlayer and increment == 1 then
@@ -140,11 +140,11 @@ function Zone.new(container)
 	janitor:add(function()
 		ZoneController._deregisterZone(self)
 	end, true)
-	
+
 	return self
 end
 
-function Zone.fromRegion(cframe, size)
+function Zone.fromRegion(cframe, size, zoneShape)
 	local MAX_PART_SIZE = 2024
 	local container = Instance.new("Model")
 	local function createCube(cubeCFrame, cubeSize)
@@ -169,15 +169,43 @@ function Zone.fromRegion(cframe, size)
 	end
 	createCube(cframe, size)
 	local zone = Zone.new(container)
+	if zoneShape then
+		zone.zoneShape = zoneShape
+	end
 	zone:relocate()
 	return zone
 end
 
+function Zone.fromBox(cframe, size)
+	-- Creates an optimized box-shaped zone using GetPartBoundsInBox
+	-- Note: This calls fromRegion which auto-relocates the zone
+	local zone = Zone.fromRegion(cframe, size, enum.ZoneShape.Box)
+	return zone
+end
 
+function Zone.fromSphere(position, radius)
+	-- Creates an optimized spherical zone using GetPartBoundsInRadius
+	-- Creates a physical ball part for the zone
+	local part = Instance.new("Part")
+	part.Shape = Enum.PartType.Ball
+	part.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
+	part.CFrame = CFrame.new(position)
+	part.Anchored = true
+	part.CanCollide = false
+	part.Transparency = 1
+	part.Parent = workspace
+
+	local zone = Zone.new(part)
+	zone.zoneShape = enum.ZoneShape.Sphere
+	zone.sphereRadius = radius
+	zone.spherePosition = position
+	-- Note: Call zone:relocate() manually if you want to move it to a WorldModel
+	return zone
+end
 
 -- PRIVATE METHODS
 function Zone:_calculateRegion(tableOfParts, dontRound)
-	local bounds = {["Min"] = {}, ["Max"] = {}}
+	local bounds = { ["Min"] = {}, ["Max"] = {} }
 	for boundType, details in pairs(bounds) do
 		details.Values = {}
 		function details.parseCheck(v, currentValue)
@@ -188,7 +216,7 @@ function Zone:_calculateRegion(tableOfParts, dontRound)
 			end
 		end
 		function details:parse(valuesToParse)
-			for i,v in pairs(valuesToParse) do
+			for i, v in pairs(valuesToParse) do
 				local currentValue = self.Values[i] or v
 				if self.parseCheck(v, currentValue) then
 					self.Values[i] = v
@@ -210,7 +238,7 @@ function Zone:_calculateRegion(tableOfParts, dontRound)
 		}
 		for _, cornerCFrame in pairs(corners) do
 			local x, y, z = cornerCFrame:GetComponents()
-			local values = {x, y, z}
+			local values = { x, y, z }
 			bounds.Min:parse(values)
 			bounds.Max:parse(values)
 		end
@@ -221,7 +249,7 @@ function Zone:_calculateRegion(tableOfParts, dontRound)
 	-- by ensuring it aligns on the voxel grid
 	local function roundToFour(to_round)
 		local ROUND_TO = 4
-		local divided = (to_round+ROUND_TO/2) / ROUND_TO
+		local divided = (to_round + ROUND_TO / 2) / ROUND_TO
 		local rounded = ROUND_TO * math.floor(divided)
 		return rounded
 	end
@@ -231,28 +259,30 @@ function Zone:_calculateRegion(tableOfParts, dontRound)
 			local newV = v
 			if not dontRound then
 				local roundOffset = (boundName == "Min" and -2) or 2
-				newV = roundToFour(v+roundOffset) -- +-2 to ensures the zones region is not rounded down/up
+				newV = roundToFour(v + roundOffset) -- +-2 to ensures the zones region is not rounded down/up
 			end
 			table.insert(newTable, newV)
 		end
 	end
 	local boundMin = Vector3.new(unpack(minBound))
 	local boundMax = Vector3.new(unpack(maxBound))
-	local region = Region3.new(boundMin, boundMax)
-	return region, boundMin, boundMax
+	-- Convert bounds to CFrame + Size (modern approach instead of deprecated Region3)
+	local regionSize = boundMax - boundMin
+	local regionCFrame = CFrame.new((boundMin + boundMax) / 2)
+	return regionCFrame, regionSize, boundMin, boundMax
 end
 
 function Zone:_displayBounds()
 	if not self.displayBoundParts then
 		self.displayBoundParts = true
-		local boundParts = {BoundMin = self.boundMin, BoundMax = self.boundMax}
+		local boundParts = { BoundMin = self.boundMin, BoundMax = self.boundMax }
 		for boundName, boundCFrame in pairs(boundParts) do
 			local part = Instance.new("Part")
 			part.Anchored = true
 			part.CanCollide = false
 			part.Transparency = 0.5
-			part.Size = Vector3.new(1,1,1)
-			part.Color = Color3.fromRGB(255,0,0)
+			part.Size = Vector3.new(1, 1, 1)
+			part.Color = Color3.fromRGB(255, 0, 0)
 			part.CFrame = CFrame.new(boundCFrame)
 			part.Name = boundName
 			part.Parent = workspace
@@ -292,16 +322,18 @@ function Zone:_update()
 	end
 	self.zoneParts = zoneParts
 	self.overlapParams = {}
-	
+
 	local allZonePartsAreBlocksNew = true
 	for _, zonePart in pairs(zoneParts) do
-		local success, shapeName = pcall(function() return zonePart.Shape.Name end)
+		local success, shapeName = pcall(function()
+			return zonePart.Shape.Name
+		end)
 		if shapeName ~= "Block" then
 			allZonePartsAreBlocksNew = false
 		end
 	end
 	self.allZonePartsAreBlocks = allZonePartsAreBlocksNew
-	
+
 	local zonePartsWhitelist = OverlapParams.new()
 	zonePartsWhitelist.FilterType = Enum.RaycastFilterType.Include
 	zonePartsWhitelist.MaxParts = #zoneParts
@@ -312,7 +344,7 @@ function Zone:_update()
 	zonePartsIgnorelist.FilterType = Enum.RaycastFilterType.Exclude
 	zonePartsIgnorelist.FilterDescendantsInstances = zoneParts
 	self.overlapParams.zonePartsIgnorelist = zonePartsIgnorelist
-	
+
 	-- this will call update on the zone when the container parts size or position changes, and when a
 	-- child is removed or added from a holder (anything which isn't a basepart)
 	local function update()
@@ -336,10 +368,12 @@ function Zone:_update()
 			end)
 		end
 	end
-	local partProperties = {"Size", "Position"}
+	local partProperties = { "Size", "Position" }
 	local function verifyDefaultCollision(instance)
 		if instance.CollisionGroupId ~= 0 then
-			error("Zone parts must belong to the 'Default' (0) CollisionGroup! Consider using zone:relocate() if you wish to move zones outside of workspace to prevent them interacting with other parts.")
+			error(
+				"Zone parts must belong to the 'Default' (0) CollisionGroup! Consider using zone:relocate() if you wish to move zones outside of workspace to prevent them interacting with other parts."
+			)
 		end
 	end
 	for _, part in pairs(zoneParts) do
@@ -347,30 +381,37 @@ function Zone:_update()
 			self._updateConnections:add(part:GetPropertyChangedSignal(prop):Connect(update), "Disconnect")
 		end
 		verifyDefaultCollision(part)
-		self._updateConnections:add(part:GetPropertyChangedSignal("CollisionGroupId"):Connect(function()
-			verifyDefaultCollision(part)
-		end), "Disconnect")
+		self._updateConnections:add(
+			part:GetPropertyChangedSignal("CollisionGroupId"):Connect(function()
+				verifyDefaultCollision(part)
+			end),
+			"Disconnect"
+		)
 	end
-	local containerEvents = {"ChildAdded", "ChildRemoved"}
+	local containerEvents = { "ChildAdded", "ChildRemoved" }
 	for _, holder in pairs(holders) do
 		for _, event in pairs(containerEvents) do
-			self._updateConnections:add(self.container[event]:Connect(function(child)
-				if child:IsA("BasePart") then
-					update()
-				end
-			end), "Disconnect")
+			self._updateConnections:add(
+				self.container[event]:Connect(function(child)
+					if child:IsA("BasePart") then
+						update()
+					end
+				end),
+				"Disconnect"
+			)
 		end
 	end
-	
-	local region, boundMin, boundMax = self:_calculateRegion(zoneParts)
-	local exactRegion, _, _ = self:_calculateRegion(zoneParts, true)
-	self.region = region
-	self.exactRegion = exactRegion
+
+	local regionCFrame, regionSize, boundMin, boundMax = self:_calculateRegion(zoneParts)
+	local exactRegionCFrame, exactRegionSize, _, _ = self:_calculateRegion(zoneParts, true)
+	self.regionCFrame = regionCFrame
+	self.regionSize = regionSize
+	self.exactRegionCFrame = exactRegionCFrame
+	self.exactRegionSize = exactRegionSize
 	self.boundMin = boundMin
 	self.boundMax = boundMax
-	local rSize = region.Size
-	self.volume = rSize.X*rSize.Y*rSize.Z
-	
+	self.volume = regionSize.X * regionSize.Y * regionSize.Z
+
 	-- Update: I was going to use this for the old part detection until the CanTouch property was released
 	-- everything below is now irrelevant however I'll keep just in case I use again for future
 	-------------------------------------------------------------------------------------------------
@@ -384,9 +425,9 @@ function Zone:_update()
 	local maxPartsBaseline = #result
 	self.recommendedMaxParts = maxPartsBaseline + self.maxPartsAddition
 	--]]
-	
+
 	self:_updateTouchedConnections()
-	
+
 	self.updated:Fire()
 end
 
@@ -416,12 +457,12 @@ function Zone:_updateOccupants(trackerName, newOccupants)
 			end
 			table.insert(signalsToFire.entered, occupant)
 		end
-	end 
+	end
 	return signalsToFire
 end
 
 function Zone:_formTouchedConnection(triggerType)
-	local touchedJanitorName = "_touchedJanitor"..triggerType
+	local touchedJanitorName = "_touchedJanitor" .. triggerType
 	local touchedJanitor = self[touchedJanitorName]
 	if touchedJanitor then
 		touchedJanitor:clean()
@@ -433,9 +474,11 @@ function Zone:_formTouchedConnection(triggerType)
 end
 
 function Zone:_updateTouchedConnection(triggerType)
-	local touchedJanitorName = "_touchedJanitor"..triggerType
+	local touchedJanitorName = "_touchedJanitor" .. triggerType
 	local touchedJanitor = self[touchedJanitorName]
-	if not touchedJanitor then return end
+	if not touchedJanitor then
+		return
+	end
 	for _, basePart in pairs(self.zoneParts) do
 		touchedJanitor:add(basePart.Touched:Connect(self.touchedConnectionActions[triggerType], self), "Disconnect")
 	end
@@ -443,7 +486,7 @@ end
 
 function Zone:_updateTouchedConnections()
 	for triggerType, _ in pairs(self.touchedConnectionActions) do
-		local touchedJanitorName = "_touchedJanitor"..triggerType
+		local touchedJanitorName = "_touchedJanitor" .. triggerType
 		local touchedJanitor = self[touchedJanitorName]
 		if touchedJanitor then
 			touchedJanitor:cleanup()
@@ -453,7 +496,7 @@ function Zone:_updateTouchedConnections()
 end
 
 function Zone:_disconnectTouchedConnection(triggerType)
-	local touchedJanitorName = "_touchedJanitor"..triggerType
+	local touchedJanitorName = "_touchedJanitor" .. triggerType
 	local touchedJanitor = self[touchedJanitorName]
 	if touchedJanitor then
 		touchedJanitor:cleanup()
@@ -462,57 +505,62 @@ function Zone:_disconnectTouchedConnection(triggerType)
 end
 
 local function round(number, decimalPlaces)
-	return math.round(number * 10^decimalPlaces) * 10^-decimalPlaces
+	return math.round(number * 10 ^ decimalPlaces) * 10 ^ -decimalPlaces
 end
 function Zone:_partTouchedZone(part)
 	local trackingDict = self.trackingTouchedTriggers["part"]
-	if trackingDict[part] then return end
+	if trackingDict[part] then
+		return
+	end
 	local nextCheck = 0
 	local verifiedEntrance = false
 	local enterPosition = part.Position
 	local enterTime = os.clock()
 	local partJanitor = self.janitor:add(Janitor.new(), "destroy")
 	trackingDict[part] = partJanitor
-	local instanceClassesToIgnore = {Seat = true, VehicleSeat = true}
-	local instanceNamesToIgnore = {HumanoidRootPart = true}
-	if not (instanceClassesToIgnore[part.ClassName] or not instanceNamesToIgnore[part.Name])  then
+	local instanceClassesToIgnore = { Seat = true, VehicleSeat = true }
+	local instanceNamesToIgnore = { HumanoidRootPart = true }
+	if not (instanceClassesToIgnore[part.ClassName] or not instanceNamesToIgnore[part.Name]) then
 		part.CanTouch = false
 	end
 	--
 	local partVolume = round((part.Size.X * part.Size.Y * part.Size.Z), 5)
 	self.totalPartVolume += partVolume
 	--
-	partJanitor:add(heartbeat:Connect(function()
-		local clockTime = os.clock()
-		if clockTime >= nextCheck then
-			----
-			local cooldown = enum.Accuracy.getProperty(self.accuracy)
-			nextCheck = clockTime + cooldown
-			----
+	partJanitor:add(
+		heartbeat:Connect(function()
+			local clockTime = os.clock()
+			if clockTime >= nextCheck then
+				----
+				local cooldown = enum.Accuracy.getProperty(self.accuracy)
+				nextCheck = clockTime + cooldown
+				----
 
-			-- We initially perform a singular point check as this is vastly more lightweight than a large part check
-			-- If the former returns false, perform a whole part check in case the part is on the outer bounds.
-			local withinZone = self:findPoint(part.CFrame)
-			if not withinZone then
-				withinZone = self:findPart(part)
-			end
-			if not verifiedEntrance then
-				if withinZone then
-					verifiedEntrance = true
-					self.partEntered:Fire(part)
-				elseif (part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown then
-					-- Even after the part has exited the zone, we track it for a brief period of time based upon the criteria
-					-- in the line above to ensure the .touched behaviours are not abused
-					partJanitor:cleanup()
+				-- We initially perform a singular point check as this is vastly more lightweight than a large part check
+				-- If the former returns false, perform a whole part check in case the part is on the outer bounds.
+				local withinZone = self:findPoint(part.CFrame)
+				if not withinZone then
+					withinZone = self:findPart(part)
 				end
-			elseif not withinZone then
-				verifiedEntrance = false
-				enterPosition = part.Position
-				enterTime = os.clock()
-				self.partExited:Fire(part)
+				if not verifiedEntrance then
+					if withinZone then
+						verifiedEntrance = true
+						self.partEntered:Fire(part)
+					elseif (part.Position - enterPosition).Magnitude > 1.5 and clockTime - enterTime >= cooldown then
+						-- Even after the part has exited the zone, we track it for a brief period of time based upon the criteria
+						-- in the line above to ensure the .touched behaviours are not abused
+						partJanitor:cleanup()
+					end
+				elseif not withinZone then
+					verifiedEntrance = false
+					enterPosition = part.Position
+					enterTime = os.clock()
+					self.partExited:Fire(part)
+				end
 			end
-		end
-	end), "Disconnect")
+		end),
+		"Disconnect"
+	)
 	partJanitor:add(function()
 		trackingDict[part] = nil
 		part.CanTouch = true
@@ -522,17 +570,19 @@ end
 
 local partShapeActions = {
 	["Ball"] = function(part)
-		return "GetPartBoundsInRadius", {part.Position, part.Size.X}
+		return "GetPartBoundsInRadius", { part.Position, part.Size.X }
 	end,
 	["Block"] = function(part)
-		return "GetPartBoundsInBox", {part.CFrame, part.Size}
+		return "GetPartBoundsInBox", { part.CFrame, part.Size }
 	end,
 	["Other"] = function(part)
-		return "GetPartsInPart", {part}
+		return "GetPartsInPart", { part }
 	end,
 }
 function Zone:_getRegionConstructor(part, overlapParams)
-	local success, shapeName = pcall(function() return part.Shape.Name end)
+	local success, shapeName = pcall(function()
+		return part.Shape.Name
+	end)
 	local methodName, args
 	if success and self.allZonePartsAreBlocks then
 		local action = partShapeActions[shapeName]
@@ -548,8 +598,6 @@ function Zone:_getRegionConstructor(part, overlapParams)
 	end
 	return methodName, args
 end
-
-
 
 -- PUBLIC METHODS
 function Zone:findLocalPlayer()
@@ -635,7 +683,8 @@ end
 function Zone:_getAll(trackerName)
 	ZoneController.updateDetection(self)
 	local itemsArray = {}
-	local zonesAndOccupants = ZoneController._getZonesAndItems(trackerName, {self = true}, self.volume, false, self._currentEnterDetection)
+	local zonesAndOccupants =
+		ZoneController._getZonesAndItems(trackerName, { self = true }, self.volume, false, self._currentEnterDetection)
 	local occupantsDict = zonesAndOccupants[self]
 	if occupantsDict then
 		for item, _ in pairs(occupantsDict) do
@@ -665,7 +714,8 @@ function Zone:getParts()
 		end
 		return partsArray
 	end
-	local partsInRegion = self.worldModel:GetPartBoundsInBox(self.region.CFrame, self.region.Size, self.overlapParams.zonePartsIgnorelist)
+	local partsInRegion =
+		self.worldModel:GetPartBoundsInBox(self.regionCFrame, self.regionSize, self.overlapParams.zonePartsIgnorelist)
 	for _, part in pairs(partsInRegion) do
 		if self:findPart(part) then
 			table.insert(partsArray, part)
@@ -675,15 +725,19 @@ function Zone:getParts()
 end
 
 function Zone:getRandomPoint()
-	local region = self.exactRegion
-	local size = region.Size
-	local cframe = region.CFrame
+	local cframe = self.exactRegionCFrame
+	local size = self.exactRegionSize
 	local random = Random.new()
 	local randomCFrame
 	local success, touchingZoneParts
 	local pointIsWithinZone
 	repeat
-		randomCFrame = cframe * CFrame.new(random:NextNumber(-size.X/2,size.X/2), random:NextNumber(-size.Y/2,size.Y/2), random:NextNumber(-size.Z/2,size.Z/2))
+		randomCFrame = cframe
+			* CFrame.new(
+				random:NextNumber(-size.X / 2, size.X / 2),
+				random:NextNumber(-size.Y / 2, size.Y / 2),
+				random:NextNumber(-size.Z / 2, size.Z / 2)
+			)
 		success, touchingZoneParts = self:findPoint(randomCFrame)
 		if success then
 			pointIsWithinZone = true
@@ -707,6 +761,24 @@ function Zone:setAccuracy(enumIdOrName)
 		end
 	end
 	self.accuracy = enumId
+end
+
+function Zone:setZoneShape(enumIdOrName)
+	-- Allows changing the spatial query method used for this zone
+	-- Options: "Auto", "Box", "Sphere"
+	local enumId = tonumber(enumIdOrName)
+	if not enumId then
+		enumId = enum.ZoneShape[enumIdOrName]
+		if not enumId then
+			error(("'%s' is an invalid enumName!"):format(enumIdOrName))
+		end
+	else
+		local enumName = enum.ZoneShape.getName(enumId)
+		if not enumName then
+			error(("%s is an invalid enumId!"):format(enumId))
+		end
+	end
+	self.zoneShape = enumId
 end
 
 function Zone:setDetection(enumIdOrName)
@@ -751,11 +823,14 @@ function Zone:trackItem(instance)
 	}
 	self.trackedItems[instance] = itemDetail
 
-	itemJanitor:add(instance.AncestryChanged:Connect(function()
-		if not instance:IsDescendantOf(game) then
-			self:untrackItem(instance)
-		end
-	end), "Disconnect")
+	itemJanitor:add(
+		instance.AncestryChanged:Connect(function()
+			if not instance:IsDescendantOf(game) then
+				self:untrackItem(instance)
+			end
+		end),
+		"Disconnect"
+	)
 
 	local Tracker = require(trackerModule)
 	Tracker.itemAdded:Fire(itemDetail)
@@ -798,7 +873,7 @@ function Zone:relocate()
 	local worldModel = CollectiveWorldModel.setupWorldModel(self)
 	self.worldModel = worldModel
 	self.hasRelocated = true
-	
+
 	local relocationContainer = self.container
 	if typeof(relocationContainer) == "table" then
 		relocationContainer = Instance.new("Folder")
@@ -870,7 +945,5 @@ function Zone:destroy()
 	self.janitor:destroy()
 end
 Zone.Destroy = Zone.destroy
-
-
 
 return Zone
