@@ -1,9 +1,9 @@
 -- LOCAL
+--!nocheck
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
 local heartbeat = runService.Heartbeat
 local localPlayer = runService:IsClient() and players.LocalPlayer
-local replicatedStorage = game:GetService("ReplicatedStorage")
 local httpService = game:GetService("HttpService")
 local Enum_ = require(script.Enum)
 local enum = Enum_.enums
@@ -871,6 +871,71 @@ function Zone:destroy()
 end
 Zone.Destroy = Zone.destroy
 
+export type EnumInstance = number
+
+export type ZoneSignal<T...> = {
+    Connect: (self: ZoneSignal<T...>, callback: (T...) -> ()) -> ()
+}
+
+export type Enumerators = {
+	Detection:{
+		WholeBody:EnumInstance;
+		Centre:EnumInstance
+	};
+
+	Accuracy:{
+		Low:EnumInstance;
+		Medium:EnumInstance;
+		High:EnumInstance;
+		Precise:EnumInstance
+	}
+}
+
+export type Zone = {
+	localPlayerEntered:ZoneSignal<>;
+	localPlayerExited:ZoneSignal<>;
+	playerEntered:ZoneSignal<Player>;
+	playerExited:ZoneSignal<Player>;
+	partEntered:ZoneSignal<BasePart>;
+	partExited:ZoneSignal<BasePart>;
+	itemEntered:ZoneSignal<Instance>;
+	itemExited:ZoneSignal<BasePart>;
+
+	accuracy:EnumInstance;
+	enterDetection:EnumInstance;
+	exitDetection:EnumInstance;
+	autoUpdate:boolean;
+	respectUpdateQueue:boolean;
+	zoneParts:{BasePart};
+	enum:Enumerators;
 
 
-return Zone
+	findLocalPlayer:(self:Zone) -> boolean;
+	findPlayer:(self:Zone, Player:Player) -> boolean;
+	findPart:(self:Zone, basePart:BasePart) -> (boolean, {Instance}?); -- TODO: Resolve if this does return a aray of instances
+	findItem:(self:Zone, basePartOrCharacter:Instance) -> (boolean, {Instance}?);
+	findPoint:(self:Zone, Point:Vector3) -> (boolean, {Instance}?);
+	getPlayers:(self:Zone) -> {Player};
+	getParts:(self:Zone) -> {BasePart};
+	getItems:(self:Zone) -> {Instance};
+	getRandomPoint:(self:Zone) -> (Vector3, {Instance});
+	trackItem:(self:Zone, characterOrBasePart:Model | BasePart) -> nil; -- TODO: solve wether or not this has a return value.
+	untrackItem:(self:Zone, characterOrBasePart:Model | BasePart) -> nil; -- TODO: solve wether or not this has a return value.
+
+	---- TODO ADD GROUP THINGS HERE NEED TO DO MORE RESEARCH INTO HOW THEY WORK
+
+	setDetection:(self:Zone, EnumInstance | string) -> nil;
+	relocate:(self:Zone) -> nil;
+	onItemEnter:(self:Zone, characterOrBasePart:Model | BasePart, Callback:() -> nil) -> nil;
+	onItemExit:(self:Zone, characterOrBasePart:Model | BasePart, Callback:() -> nil) -> nil;
+	destroy:(self:Zone) -> nil;
+}
+
+export type ZonePlus = {
+	new:(container:Instance) -> Zone;
+	fromRegion:(CFrame:CFrame, Size:Vector3) -> Zone;
+
+	enum:Enumerators
+}
+
+return Zone::ZonePlus

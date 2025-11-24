@@ -1,3 +1,4 @@
+--!nocheck
 -- Custom enum implementation that provides an effective way to compare, send
 -- and store values. Instead of returning a userdata value, enum items return
 -- their corresponding itemValue (an integer) when indexed. Enum items can
