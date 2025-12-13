@@ -28,7 +28,7 @@ if not referencePresent then
 end
 Zone.enum = enum
 
-
+export type Zone = typeof(setmetatable({}, Zone))
 
 -- CONSTRUCTORS
 function Zone.new(container)
